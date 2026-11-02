@@ -50,7 +50,15 @@ interface SwitchExecutionResult {
   confirmation_message?: string;
 }
 
-export default function Profiles() {
+interface ProfilesProps {
+  selectedProfileId?: string | null;
+  onSelectProfile?: (id: string) => void;
+}
+
+export default function Profiles({
+  selectedProfileId,
+  onSelectProfile,
+}: ProfilesProps = {}) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [usages, setUsages] = useState<Record<string, UsageReading>>({});
@@ -314,12 +322,16 @@ export default function Profiles() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {profiles.map((p) => {
             const usage = usages[p.id];
+            const isSelected = selectedProfileId === p.id;
             return (
               <motion.div
                 key={p.id}
+                onClick={() => onSelectProfile?.(p.id)}
                 whileHover={{ y: -2 }}
                 transition={{ duration: 0.15 }}
-                className="card p-5 flex flex-col justify-between gap-4"
+                className={`card p-5 flex flex-col justify-between gap-4 cursor-pointer transition-all ${
+                  isSelected ? "border-white/40 shadow-glow bg-[#181818]" : ""
+                }`}
               >
                 <div>
                   {/* Card top */}

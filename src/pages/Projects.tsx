@@ -36,7 +36,15 @@ interface AppSettings {
   flags: { auto_switch: boolean };
 }
 
-export default function Projects() {
+interface ProjectsProps {
+  selectedProjectId?: string | null;
+  onSelectProject?: (id: string) => void;
+}
+
+export default function Projects({
+  selectedProjectId,
+  onSelectProject,
+}: ProjectsProps = {}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [flags, setFlags] = useState<{ auto_switch: boolean }>({ auto_switch: false });
@@ -234,12 +242,17 @@ export default function Projects() {
               (p) => p.id === proj.default_profile_id
             );
 
+            const isSelected = selectedProjectId === proj.id;
+
             return (
               <motion.div
                 key={proj.id}
+                onClick={() => onSelectProject?.(proj.id)}
                 whileHover={{ y: -1 }}
                 transition={{ duration: 0.1 }}
-                className="card p-4 flex items-center justify-between gap-4"
+                className={`card p-4 flex items-center justify-between gap-4 cursor-pointer transition-all ${
+                  isSelected ? "border-white/40 shadow-glow bg-[#181818]" : ""
+                }`}
               >
                 {/* Info */}
                 <div className="space-y-1.5 min-w-0">
@@ -275,7 +288,10 @@ export default function Projects() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-4 flex-shrink-0">
+                <div
+                  className="flex items-center gap-4 flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {/* Auto-switch toggle using Radix Switch */}
                   {flags.auto_switch && (
                     <div
