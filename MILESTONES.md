@@ -190,4 +190,4 @@ Before closing any milestone and proceeding to the next:
 2. **Automated Verification:** All unit and integration tests for the milestone pass (`cargo test`).
 3. **Windows System Verification:** Specific Win32 API behaviors (Job Object destruction, environment block inspection, file locking) verified on native Windows.
 4. **Git Branching & Merge Discipline:** Every milestone/feature must be developed on a dedicated branch (`milestone/m<N>-<name>` or `feat/<name>`) and only merged into `master` after passing all criteria.
-5. **Git Discipline:** Clean semantic commit messages with full traceability.
+5. **Commit & Push Discipline:** Clean semantic commits pushed promptly to `origin` (`git push origin <branch>` / `git push origin master`). No changes left uncommitted or unpushed.

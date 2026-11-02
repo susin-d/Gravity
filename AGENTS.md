@@ -29,6 +29,9 @@ When working on this codebase:
    - When implementing any new feature or milestone work, ALWAYS create a dedicated git branch (e.g. `feat/<feature-name>` or `milestone/m<N>-<name>`).
    - Never develop or commit feature changes directly on `master`.
    - Once the feature is fully implemented, all verification checks pass (`cargo check`, `cargo test`, `pnpm tsc --noEmit`), and acceptance criteria are met, merge the feature branch back into `master` and clean up the feature branch.
+7. **Always Commit and Push Changes:**
+   - Every completed logical unit of work, milestone deliverable, or documentation update MUST be committed with a clean semantic message and pushed immediately to the remote (`git push origin <branch>` / `git push origin master`).
+   - Never leave unpushed commits or uncommitted working tree changes when ending a turn.
 
 ---
 
@@ -186,4 +189,5 @@ pnpm tauri dev
      git checkout master
      git merge --no-ff feat/<name> -m "feat: merge <name> into master"
      git branch -d feat/<name>
+     git push origin master
      ```
