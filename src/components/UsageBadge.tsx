@@ -1,4 +1,8 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { RefreshCw, Clock, AlertCircle } from "lucide-react";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 export interface UsageReading {
   id: string;
@@ -22,21 +26,21 @@ interface UsageBadgeProps {
 export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadgeProps) {
   if (!reading) {
     return (
-      <div className="bg-gray-950/60 border border-gray-800 rounded-lg p-3 text-xs flex items-center justify-between">
+      <div className="bg-surface-1 border border-border-subtle rounded-lg p-3 text-xs flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-gray-800 text-gray-500">
-            Unknown
-          </span>
-          <span className="text-gray-500 italic">No usage data recorded</span>
+          <Badge variant="neutral">Unknown</Badge>
+          <span className="text-text-tertiary italic">No telemetry recorded</span>
         </div>
         {onRefresh && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onRefresh}
             disabled={refreshing}
-            className="text-[11px] text-gray-400 hover:text-gray-200 disabled:opacity-50"
+            className="h-6 px-2 text-[11px] text-text-tertiary hover:text-text-primary"
           >
             {refreshing ? "Checking…" : "Check"}
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -45,19 +49,16 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
   const { source, value_used, value_limit, unit, reset_at, window: win } = reading;
 
   // Source badges
-  const sourceConfig = {
-    official: {
-      label: "Official",
-      className: "bg-emerald-950/60 text-emerald-400 border border-emerald-800/80",
-    },
-    estimated: {
-      label: "Estimated",
-      className: "bg-amber-950/60 text-amber-400 border border-amber-800/80",
-    },
-    unknown: {
-      label: "Unknown",
-      className: "bg-gray-800/70 text-gray-400 border border-gray-700",
-    },
+  const badgeVariant = {
+    official: "success" as const,
+    estimated: "warning" as const,
+    unknown: "neutral" as const,
+  }[source];
+
+  const sourceLabel = {
+    official: "Official",
+    estimated: "Estimated",
+    unknown: "Unknown",
   }[source];
 
   // Calculate percentage only if both are non-null and limit > 0
@@ -65,24 +66,25 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
   const percent = hasValues ? Math.min(100, Math.round(((value_used as number) / (value_limit as number)) * 100)) : null;
 
   return (
-    <div className="bg-gray-950/70 border border-gray-800/90 rounded-lg p-3 space-y-2">
+    <div className="bg-surface-1 border border-border-subtle rounded-lg p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium ${sourceConfig.className}`}>
-            {sourceConfig.label}
-          </span>
-          {win && <span className="text-[10px] text-gray-500 capitalize">{win}</span>}
+          <Badge variant={badgeVariant}>{sourceLabel}</Badge>
+          {win && <span className="text-[10px] text-text-tertiary capitalize">{win}</span>}
         </div>
 
         {onRefresh && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onRefresh}
             disabled={refreshing}
-            className="text-[11px] text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50"
+            className="h-6 px-2 text-[11px] text-text-tertiary hover:text-text-primary flex items-center gap-1"
             title="Refresh usage telemetry"
           >
-            {refreshing ? "Refreshing…" : "🔄 Refresh"}
-          </button>
+            <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+            <span>{refreshing ? "Refreshing…" : "Refresh"}</span>
+          </Button>
         )}
       </div>
 
@@ -90,20 +92,23 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
       {source === "unknown" ? (
         // PRIME DIRECTIVE #3 & AC-08: No fake progress bars, no fake numbers, no 0%
         <div className="py-1">
-          <p className="text-xs text-gray-400 font-medium">Check manually</p>
-          <p className="text-[11px] text-gray-600 mt-0.5">
+          <div className="flex items-center gap-1.5 text-xs text-text-secondary font-medium">
+            <AlertCircle className="h-3.5 w-3.5 text-text-tertiary" />
+            <span>Check manually</span>
+          </div>
+          <p className="text-[11px] text-text-tertiary mt-0.5">
             {reading.detail || "Provider usage cannot be verified automatically."}
           </p>
         </div>
       ) : (
         // Official or Estimated values
         <div>
-          <div className="flex items-baseline justify-between text-xs mb-1.5">
-            <span className="font-mono text-gray-300">
+          <div className="flex items-baseline justify-between text-xs mb-1.5 font-mono">
+            <span className="text-text-secondary">
               {formatValue(value_used)} / {formatValue(value_limit)} {unit || "units"}
             </span>
             {percent !== null && (
-              <span className={`font-mono font-semibold ${percent > 85 ? "text-red-400" : "text-gray-400"}`}>
+              <span className={`font-semibold ${percent > 85 ? "text-red-400" : "text-text-primary"}`}>
                 {percent}%
               </span>
             )}
@@ -111,12 +116,14 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
 
           {/* Progress bar only rendered when exact numbers exist and source != unknown */}
           {percent !== null && (
-            <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-300 ${
+            <div className="w-full bg-surface-3 rounded-full h-1.5 overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${percent}%` }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className={`h-full ${
                   percent > 85 ? "bg-red-500" : percent > 60 ? "bg-amber-500" : "bg-emerald-500"
                 }`}
-                style={{ width: `${percent}%` }}
               />
             </div>
           )}
@@ -166,8 +173,8 @@ function ResetTimer({ resetAt }: { resetAt: string }) {
   }, [resetAt]);
 
   return (
-    <div className="text-[11px] text-gray-500 flex items-center gap-1 font-mono pt-1 border-t border-gray-800/60">
-      <span>⏱️</span>
+    <div className="text-[11px] text-text-tertiary flex items-center gap-1.5 font-mono pt-1.5 border-t border-border-subtle">
+      <Clock className="h-3 w-3" />
       <span>{remainingText}</span>
     </div>
   );

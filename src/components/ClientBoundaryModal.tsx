@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
+import { ShieldAlert } from "lucide-react";
 import { Profile } from "../pages/Profiles";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 
 export interface ClientBoundaryModalProps {
   targetProfile: Profile;
@@ -24,57 +27,68 @@ export default function ClientBoundaryModal({
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 animate-fade-in">
-      <div className="bg-gray-900 border border-amber-600/80 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-        <div className="flex items-center gap-2.5 text-amber-400">
-          <span className="text-xl">🛡️</span>
-          <h3 className="text-base font-bold text-gray-100">
-            Move to a client account?
-          </h3>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in-0 duration-200">
+      <div className="bg-surface-2 border border-amber-600/80 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-950/60 text-amber-400 border border-amber-800/80">
+            <ShieldAlert className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-text-primary">
+              Move to a client account?
+            </h3>
+            <p className="text-xs text-text-tertiary">
+              Client accounts require explicit confirmation
+            </p>
+          </div>
         </div>
 
-        <p className="text-xs text-gray-300 leading-relaxed">
-          {fromProfile ? (
-            <>
-              Moving from <strong className="text-gray-200">{fromProfile.label}</strong> into{" "}
-              <strong className="text-amber-300 font-semibold">
-                {targetProfile.label} ({targetProfile.vendor} · {targetProfile.tag})
-              </strong>.
-            </>
-          ) : (
-            <>
-              This starts a new session in{" "}
-              <strong className="text-amber-300 font-semibold">
-                {targetProfile.label} ({targetProfile.vendor} · {targetProfile.tag})
-              </strong>.
-            </>
-          )}
-        </p>
+        <div className="text-xs text-text-secondary leading-relaxed bg-surface-1 p-3.5 rounded-xl border border-border-subtle space-y-2">
+          <p>
+            {fromProfile ? (
+              <>
+                Switching from <strong className="text-text-primary">{fromProfile.label}</strong> into{" "}
+                <strong className="text-amber-300 font-semibold">{targetProfile.label}</strong>.
+              </>
+            ) : (
+              <>
+                Starting a new session in{" "}
+                <strong className="text-amber-300 font-semibold">{targetProfile.label}</strong>.
+              </>
+            )}
+          </p>
+          <div className="flex gap-2">
+            <Badge variant="client">{targetProfile.tag}</Badge>
+            <Badge variant="neutral">{targetProfile.vendor}</Badge>
+          </div>
+        </div>
 
-        <div className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-xs text-gray-400 space-y-1">
+        <div className="bg-surface-0 border border-border-subtle rounded-xl p-3 text-xs text-text-tertiary space-y-1.5">
           <p>• Client profile isolation boundaries are active.</p>
           <p>• Automated switching into or out of client accounts is permanently prohibited.</p>
           <p>• This confirmation is strictly per-move and never remembered.</p>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-gray-800">
-          {/* Cancel button has strict default focus */}
-          <button
+        <div className="flex justify-end gap-2.5 pt-2 border-t border-border-subtle">
+          {/* Cancel button has strict default focus per AC-07 */}
+          <Button
             ref={cancelBtnRef}
             type="button"
+            variant="secondary"
+            size="default"
             onClick={onCancel}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium rounded-lg transition-colors focus:ring-2 focus:ring-gray-400 focus:outline-none"
           >
             Cancel
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            className="bg-amber-600 hover:bg-amber-500 text-white border-none shadow-md"
+            size="default"
             onClick={onConfirm}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg transition-colors focus:ring-2 focus:ring-amber-400 focus:outline-none"
           >
-            Start new session in {targetProfile.label}
-          </button>
+            Start session in {targetProfile.label}
+          </Button>
         </div>
       </div>
     </div>

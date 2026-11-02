@@ -1,5 +1,15 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FolderGit2,
+  Users,
+  Activity,
+  Zap,
+  History as HistoryIcon,
+  Settings as SettingsIcon,
+  Orbit,
+} from "lucide-react";
 import Settings from "./pages/Settings";
 import Profiles from "./pages/Profiles";
 import Projects from "./pages/Projects";
@@ -10,121 +20,126 @@ import History from "./pages/History";
 type Page = "projects" | "profiles" | "adapters" | "autoswitch" | "settings" | "history";
 
 interface AppSettings {
-  flags: {
-    auto_switch: boolean;
-  };
+  flags: { auto_switch: boolean };
 }
 
-function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("projects");
-  const [appVersion, setAppVersion] = useState<string>("");
-  const [autoSwitchFlag, setAutoSwitchFlag] = useState<boolean>(false);
+interface NavItemConfig {
+  id: Page;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const NAV: NavItemConfig[] = [
+  { id: "projects", label: "Projects", icon: FolderGit2 },
+  { id: "profiles", label: "Profiles", icon: Users },
+  { id: "adapters", label: "Adapters", icon: Activity },
+  { id: "history", label: "History", icon: HistoryIcon },
+  { id: "settings", label: "Settings", icon: SettingsIcon },
+];
+
+export default function App() {
+  const [page, setPage] = useState<Page>("projects");
+  const [version, setVersion] = useState("");
+  const [autoSwitchFlag, setAutoSwitchFlag] = useState(false);
 
   useEffect(() => {
-    invoke<string>("get_version")
-      .then(setAppVersion)
-      .catch((e) => console.error("Failed to get version:", e));
-
+    invoke<string>("get_version").then(setVersion).catch(() => {});
     invoke<AppSettings>("get_settings")
       .then((s) => setAutoSwitchFlag(s.flags.auto_switch))
-      .catch((e) => console.error("Failed to load settings:", e));
+      .catch(() => {});
   }, []);
 
+  const visibleNav: NavItemConfig[] = autoSwitchFlag
+    ? [
+        ...NAV.slice(0, 3),
+        { id: "autoswitch" as Page, label: "Auto-Switch", icon: Zap },
+        ...NAV.slice(3),
+      ]
+    : NAV;
+
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <nav className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col">
-        <div className="p-4 border-b border-gray-800" data-tauri-drag-region>
-          <h1 className="text-lg font-bold text-gravity-400 tracking-tight">
-            Gravity
-          </h1>
-          {appVersion && (
-            <span className="text-xs text-gray-500">v{appVersion}</span>
-          )}
+    <div className="flex h-screen overflow-hidden bg-surface-0">
+      {/* ── Sidebar ── */}
+      <aside className="flex w-52 shrink-0 flex-col border-r border-border-subtle bg-surface-1">
+        {/* Wordmark / drag region */}
+        <div
+          className="flex items-center gap-2.5 px-4 py-[14px]"
+          data-tauri-drag-region
+        >
+          <div className="p-1.5 rounded-lg bg-gravity-600/15 text-gravity-400 border border-gravity-600/20">
+            <Orbit className="h-4 w-4" />
+          </div>
+          <div className="flex min-w-0 flex-col">
+            <span className="text-sm font-semibold tracking-tight text-text-primary leading-none">
+              Gravity
+            </span>
+            {version && (
+              <span className="mt-0.5 text-[10px] text-text-tertiary font-mono leading-none">
+                v{version}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 py-2">
-          <NavItem
-            label="Projects"
-            active={currentPage === "projects"}
-            onClick={() => setCurrentPage("projects")}
-          />
-          <NavItem
-            label="Profiles"
-            active={currentPage === "profiles"}
-            onClick={() => setCurrentPage("profiles")}
-          />
-          <NavItem
-            label="Adapters"
-            active={currentPage === "adapters"}
-            onClick={() => setCurrentPage("adapters")}
-          />
-          {autoSwitchFlag && (
-            <NavItem
-              label="Auto-Switch"
-              active={currentPage === "autoswitch"}
-              onClick={() => setCurrentPage("autoswitch")}
-            />
-          )}
-          <NavItem
-            label="Settings"
-            active={currentPage === "settings"}
-            onClick={() => setCurrentPage("settings")}
-          />
-          <NavItem
-            label="History"
-            active={currentPage === "history"}
-            onClick={() => setCurrentPage("history")}
-          />
-        </div>
+        <div className="divider" />
 
-        <div className="p-3 border-t border-gray-800 text-xs text-gray-600">
-          Gravity v0.1 — Ready
-        </div>
-      </nav>
+        {/* Nav items */}
+        <nav className="flex-1 space-y-1 px-2.5 py-3">
+          {visibleNav.map(({ id, label, icon: Icon }) => {
+            const active = page === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setPage(id)}
+                className={[
+                  "relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all duration-150",
+                  active
+                    ? "bg-gravity-600/15 text-gravity-300"
+                    : "text-text-secondary hover:bg-surface-3 hover:text-text-primary",
+                ].join(" ")}
+              >
+                <Icon className={`h-4 w-4 shrink-0 ${active ? "text-gravity-400" : "text-text-tertiary"}`} />
+                <span>{label}</span>
+                {active && (
+                  <motion.span
+                    layoutId="active-indicator"
+                    className="ml-auto h-1.5 w-1.5 rounded-full bg-gravity-400"
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </nav>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        {currentPage === "projects" && <Projects />}
-        {currentPage === "profiles" && <Profiles />}
-        {currentPage === "adapters" && <AdapterHealth />}
-        {currentPage === "autoswitch" && <AutoSwitchConsent />}
-        {currentPage === "settings" && <Settings />}
-        {currentPage === "history" && <History />}
+        {/* Bottom strip */}
+        <div className="divider" />
+        <div className="px-4 py-3 flex items-center justify-between text-[11px] text-text-tertiary">
+          <span>AI CLI Navigator</span>
+          <span className="font-mono text-[10px]">Win32</span>
+        </div>
+      </aside>
+
+      {/* ── Main content ── */}
+      <main className="flex-1 overflow-y-auto">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={page}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.15 }}
+          >
+            {page === "projects" && <Projects />}
+            {page === "profiles" && <Profiles />}
+            {page === "adapters" && <AdapterHealth />}
+            {page === "autoswitch" && <AutoSwitchConsent />}
+            {page === "settings" && <Settings />}
+            {page === "history" && <History />}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );
 }
-
-function NavItem({
-  label,
-  active,
-  onClick,
-  disabled,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-        active
-          ? "bg-gray-800 text-gravity-400 border-l-2 border-gravity-500"
-          : disabled
-            ? "text-gray-700 cursor-not-allowed"
-            : "text-gray-400 hover:bg-gray-800/50 hover:text-gray-200"
-      }`}
-    >
-      {label}
-      {disabled && (
-        <span className="ml-2 text-[10px] text-gray-700 uppercase">soon</span>
-      )}
-    </button>
-  );
-}
-
-export default App;

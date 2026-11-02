@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { Profile } from "../pages/Profiles";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 
 export interface LimitToastProps {
   fromProfile: Profile;
@@ -29,82 +33,99 @@ export default function LimitToast({
   }, [suggestedProfile]);
 
   return (
-    <div className="fixed bottom-6 right-6 max-w-md w-full bg-gray-900 border border-amber-600/80 rounded-xl shadow-2xl p-4 z-50 animate-slide-up">
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 20, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="fixed bottom-6 right-6 max-w-md w-full bg-surface-2 border border-amber-600/80 rounded-xl shadow-2xl p-4 z-50"
+    >
       <div className="flex items-start gap-3">
-        <span className="text-xl">⚠️</span>
-        <div className="flex-1">
+        <div className="p-2 rounded-lg bg-amber-950/60 text-amber-400 border border-amber-800/80 flex-shrink-0">
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-gray-100">
+            <h4 className="text-sm font-semibold text-text-primary">
               Rate Limit Reached
             </h4>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800">
-              {fromProfile.vendor}
-            </span>
+            <Badge variant="warning">{fromProfile.vendor}</Badge>
           </div>
 
-          <p className="text-xs text-gray-300 mt-1">
-            <span className="font-medium text-amber-300">{fromProfile.label}</span> reached its limit.
+          <p className="text-xs text-text-secondary mt-1">
+            <span className="font-medium text-amber-300">{fromProfile.label}</span> reached its quota limit.
           </p>
 
           {suggestedProfile ? (
-            <p className="text-xs text-gray-400 mt-0.5">
-              Continue in <span className="font-semibold text-gray-200">{suggestedProfile.label}</span>?
+            <p className="text-xs text-text-tertiary mt-0.5">
+              Continue in <span className="font-semibold text-text-primary">{suggestedProfile.label}</span>?
             </p>
           ) : (
-            <p className="text-xs text-gray-400 mt-0.5 italic">
+            <p className="text-xs text-text-tertiary mt-0.5 italic">
               No eligible fallback profile found — Check manually.
             </p>
           )}
 
           {/* Details toggle */}
           {rawSignal && (
-            <div className="mt-2">
+            <div className="mt-2.5">
               <button
                 type="button"
                 onClick={() => setShowDetails(!showDetails)}
-                className="text-[11px] text-gray-500 hover:text-gray-300 underline"
+                className="text-[11px] text-text-tertiary hover:text-text-secondary flex items-center gap-1 transition-colors"
               >
-                {showDetails ? "Hide details" : "View limit details"}
+                <span>{showDetails ? "Hide raw limit details" : "View raw limit details"}</span>
+                {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
-              {showDetails && (
-                <pre className="mt-1 p-2 bg-gray-950 rounded text-[10px] font-mono text-gray-400 whitespace-pre-wrap break-all border border-gray-800">
-                  {rawSignal}
-                </pre>
-              )}
+              <AnimatePresence>
+                {showDetails && (
+                  <motion.pre
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-1.5 p-2 bg-surface-1 rounded-lg text-[10px] font-mono text-text-tertiary whitespace-pre-wrap break-all border border-border-subtle"
+                  >
+                    {rawSignal}
+                  </motion.pre>
+                )}
+              </AnimatePresence>
             </div>
           )}
 
           {/* Action buttons */}
-          <div className="mt-3 flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
-            <button
+          <div className="mt-3.5 flex items-center justify-end gap-2 pt-2.5 border-t border-border-subtle">
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={onStay}
-              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs rounded-lg transition-colors"
             >
               Stay
-            </button>
+            </Button>
 
             {suggestedProfile ? (
-              <button
+              <Button
                 ref={continueBtnRef}
                 type="button"
+                variant="default"
+                size="sm"
                 onClick={() => onContinue(suggestedProfile)}
-                className="px-3.5 py-1.5 bg-gravity-600 hover:bg-gravity-500 text-white text-xs font-medium rounded-lg shadow-sm transition-colors focus:ring-2 focus:ring-gravity-400 focus:outline-none"
               >
                 Continue in {suggestedProfile.label}
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={onManualSelect}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded-lg transition-colors"
               >
                 Check manually
-              </button>
+              </Button>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
