@@ -7,6 +7,7 @@ use tauri::State;
 use tracing::info;
 
 use crate::adapters::{self, AdapterHealth, DetectionResult, LimitEvent};
+use crate::auto_switch;
 use crate::flags::FeatureFlags;
 use crate::process::{self, Session, SpawnOptions};
 use crate::profiles::{self, CreateProfileInput, Profile};
@@ -286,6 +287,26 @@ pub async fn list_switch_events(
     switching::list_switch_events(state.db.pool(), limit.unwrap_or(50))
         .await
         .map_err(|e| e.to_string())
+}
+
+// ==========================================
+// Auto-Switch Engine (M6, Flag-Gated)
+// ==========================================
+
+/// Tauri command: evaluate and execute automated switch for a limited session.
+#[tauri::command]
+pub async fn trigger_auto_switch(
+    state: State<'_, Arc<AppState>>,
+    session_id: String,
+) -> Result<Option<SwitchEvent>, String> {
+    auto_switch::maybe_auto_switch(
+        state.db.pool(),
+        &state.process_mgr,
+        &session_id,
+        &state.flags,
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 // ==========================================
