@@ -1,3 +1,4 @@
+pub mod adapters;
 pub mod commands;
 pub mod db;
 pub mod flags;
@@ -101,6 +102,9 @@ pub fn run() {
             commands::get_profile_usage,
             commands::list_latest_usages,
             commands::record_usage,
+            commands::check_adapters_health,
+            commands::detect_line_limit,
+            commands::list_limit_events,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Gravity");

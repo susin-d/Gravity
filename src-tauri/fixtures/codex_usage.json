@@ -1,0 +1,9 @@
+{
+  "profile": "personal",
+  "vendor": "codex",
+  "period": "monthly",
+  "dollars_used": 18.50,
+  "dollars_limit": 20.00,
+  "reset_at": "2026-12-01T00:00:00Z",
+  "source": "official"
+}

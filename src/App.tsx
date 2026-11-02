@@ -3,8 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import Settings from "./pages/Settings";
 import Profiles from "./pages/Profiles";
 import Projects from "./pages/Projects";
+import AdapterHealth from "./pages/AdapterHealth";
 
-type Page = "settings" | "profiles" | "projects" | "history";
+type Page = "projects" | "profiles" | "adapters" | "settings" | "history";
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>("projects");
@@ -49,6 +50,11 @@ function App() {
             onClick={() => setCurrentPage("profiles")}
           />
           <NavItem
+            label="Adapters"
+            active={currentPage === "adapters"}
+            onClick={() => setCurrentPage("adapters")}
+          />
+          <NavItem
             label="Settings"
             active={currentPage === "settings"}
             onClick={() => setCurrentPage("settings")}
@@ -62,7 +68,7 @@ function App() {
         </div>
 
         <div className="p-3 border-t border-gray-800 text-xs text-gray-600">
-          M2 — Projects & Tags
+          M4 — Adapters & Fixtures
         </div>
       </nav>
 
@@ -70,6 +76,7 @@ function App() {
       <main className="flex-1 overflow-auto">
         {currentPage === "projects" && <Projects />}
         {currentPage === "profiles" && <Profiles />}
+        {currentPage === "adapters" && <AdapterHealth />}
         {currentPage === "settings" && <Settings />}
         {currentPage === "history" && (
           <Placeholder title="History" milestone="M7" />
