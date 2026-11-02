@@ -1,0 +1,2 @@
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for requests per minute. Quota exceeded.', 'type': 'insufficient_quota', 'param': null, 'code': 'rate_limit_exceeded'}}
+Your limit will reset at 2026-11-03T02:00:00Z.

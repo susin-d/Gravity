@@ -3,11 +3,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::adapters::claude::ClaudeAdapter;
 use crate::adapters::codex::CodexAdapter;
+use crate::adapters::google::GoogleAdapter;
+use crate::adapters::opencode::OpenCodeAdapter;
 use crate::profiles::Profile;
 use crate::usage::UsageReading;
 
 pub mod claude;
 pub mod codex;
+pub mod google;
+pub mod opencode;
 
 /// Health status of a CLI provider adapter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -57,6 +61,8 @@ pub fn get_adapter_for_vendor(vendor: &str) -> Option<Box<dyn ProviderAdapter>> 
     match vendor.to_lowercase().as_str() {
         "claude" => Some(Box::new(ClaudeAdapter::new())),
         "codex" => Some(Box::new(CodexAdapter::new())),
+        "google" => Some(Box::new(GoogleAdapter::new())),
+        "opencode" => Some(Box::new(OpenCodeAdapter::new())),
         _ => None,
     }
 }

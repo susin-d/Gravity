@@ -211,6 +211,9 @@ pub fn build_env_block(profile: &Profile, secret: Option<&str>) -> HashMap<Strin
             || upper_key.starts_with("OPENAI_")
             || upper_key.starts_with("CLAUDE_")
             || upper_key.starts_with("CODEX_")
+            || upper_key.starts_with("GOOGLE_")
+            || upper_key.starts_with("GEMINI_")
+            || upper_key.starts_with("OPENCODE_")
         {
             continue;
         }
@@ -240,6 +243,25 @@ pub fn build_env_block(profile: &Profile, secret: Option<&str>) -> HashMap<Strin
             if let Some(sec) = secret {
                 if !sec.is_empty() {
                     env.insert("OPENAI_API_KEY".to_string(), sec.to_string());
+                }
+            }
+        }
+        "google" => {
+            env.insert("GEMINI_CONFIG_DIR".to_string(), profile.config_dir.clone());
+            if let Some(sec) = secret {
+                if !sec.is_empty() {
+                    env.insert("GEMINI_API_KEY".to_string(), sec.to_string());
+                }
+            }
+        }
+        "opencode" => {
+            env.insert(
+                "OPENCODE_CONFIG_DIR".to_string(),
+                profile.config_dir.clone(),
+            );
+            if let Some(sec) = secret {
+                if !sec.is_empty() {
+                    env.insert("OPENCODE_API_KEY".to_string(), sec.to_string());
                 }
             }
         }
@@ -314,6 +336,52 @@ mod tests {
             "C:\\AppData\\Gravity\\profiles\\test-uuid-1234"
         );
         assert_eq!(env.get("OPENAI_API_KEY").unwrap(), "openai-key-secret");
+    }
+
+    #[test]
+    fn test_build_env_block_google_isolation() {
+        std::env::set_var("GOOGLE_API_KEY", "leaked-google-key");
+        std::env::set_var("GEMINI_TEST_VAR", "leaked-gemini");
+
+        let profile = dummy_profile("google", "personal");
+        let env = build_env_block(&profile, Some("legit-gemini-secret-key"));
+
+        assert!(!env.contains_key("GOOGLE_API_KEY"));
+        assert!(!env.contains_key("GEMINI_TEST_VAR"));
+        assert!(!env.contains_key("ANTHROPIC_API_KEY"));
+        assert!(!env.contains_key("CODEX_HOME"));
+
+        assert_eq!(
+            env.get("GEMINI_CONFIG_DIR").unwrap(),
+            "C:\\AppData\\Gravity\\profiles\\test-uuid-1234"
+        );
+        assert_eq!(
+            env.get("GEMINI_API_KEY").unwrap(),
+            "legit-gemini-secret-key"
+        );
+    }
+
+    #[test]
+    fn test_build_env_block_opencode_isolation() {
+        std::env::set_var("OPENCODE_API_KEY", "leaked-opencode-key");
+        std::env::set_var("OPENCODE_LEAK", "leaked-opencode");
+
+        let profile = dummy_profile("opencode", "work");
+        let env = build_env_block(&profile, Some("legit-opencode-secret-key"));
+
+        // Leaked parent key must NOT appear; injected secret overrides it
+        assert_eq!(
+            env.get("OPENCODE_API_KEY").unwrap(),
+            "legit-opencode-secret-key"
+        );
+        assert!(!env.contains_key("OPENCODE_LEAK"));
+        assert!(!env.contains_key("ANTHROPIC_API_KEY"));
+        assert!(!env.contains_key("GEMINI_CONFIG_DIR"));
+
+        assert_eq!(
+            env.get("OPENCODE_CONFIG_DIR").unwrap(),
+            "C:\\AppData\\Gravity\\profiles\\test-uuid-1234"
+        );
     }
 
     #[test]

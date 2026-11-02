@@ -1,0 +1,9 @@
+{
+  "profile": "work",
+  "vendor": "google",
+  "period": "daily",
+  "tokens_used": 48200,
+  "tokens_limit": 50000,
+  "reset_at": "2026-11-03T00:00:00Z",
+  "source": "official"
+}

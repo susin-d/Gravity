@@ -1,0 +1,9 @@
+{
+  "profile": "personal",
+  "vendor": "opencode",
+  "period": "monthly",
+  "requests_used": 450,
+  "requests_limit": 500,
+  "reset_at": "2026-12-01T00:00:00Z",
+  "source": "official"
+}
