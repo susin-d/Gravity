@@ -13,6 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
+        "label": "main",
         "title": "Gravity",
         "width": 960,
         "height": 640,
@@ -20,7 +21,9 @@
         "minHeight": 480,
         "resizable": true,
         "visible": true,
-        "decorations": true
+        "decorations": true,
+        "center": true,
+        "focus": true
       }
     ],
     "trayIcon": {

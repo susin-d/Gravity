@@ -85,6 +85,11 @@ pub fn run() {
                 }
             });
 
+            if let Some(main_window) = app.get_webview_window("main") {
+                let _ = main_window.show();
+                let _ = main_window.set_focus();
+            }
+
             info!("Setup complete");
             Ok(())
         })
