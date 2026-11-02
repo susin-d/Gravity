@@ -1,7 +1,7 @@
 # Gravity — Milestones, Deliverables & Feature Roadmap
 
 > **Project:** Gravity  
-> **Status:** Active Implementation (M0, M1, M2 Complete)  
+> **Status:** Active Implementation (M0, M1, M2, M3 Complete)  
 > **Target OS:** Windows 10/11 (Native Win32 + Tauri 2)
 
 ---
@@ -13,8 +13,8 @@
 | **M0** | Core Foundation & Shell | ✅ Complete | v0.1 | Single Instance Mutex, SQLite (WAL), Flags Loader, Settings View |
 | **M1** | Profiles, Isolation & Process Engine | ✅ Complete | v0.1 | DPAPI Credential Storage, Clean Env Block, Job Objects, Terminal Spawner |
 | **M2** | Project Registry & Tagging | ✅ Complete | v0.1 | Directory Registry, `personal` / `work` / `client` Tags, Policy Storage |
-| **M3** | Honest Telemetry & Badges | 🔄 Next | v0.1 | Tri-state Usage (`official`/`estimated`/`unknown`), No fake UI, Reset Timers |
-| **M4** | Provider Adapters & Fixtures | 📋 Planned | v0.1 | Claude Code & Codex Output Parsers, <1s Rate Limit Detection, Fixture Suite |
+| **M3** | Honest Telemetry & Badges | ✅ Complete | v0.1 | Tri-state Usage (`official`/`estimated`/`unknown`), No fake UI, Reset Timers |
+| **M4** | Provider Adapters & Fixtures | 🔄 Next | v0.1 | Claude Code & Codex Output Parsers, <1s Rate Limit Detection, Fixture Suite |
 | **M5** | Limit Toast, Session Switch & Modal | 📋 Planned | v0.1 | Non-blocking Toast, MRU Fallback Engine, Client Boundary Consent Modal |
 | **M6** | Auto-Switch Policy Engine | 📋 Planned | v0.1 | `flags.toml` Gated Engine, Client Boundary Lockout, Auto-Switch Banners |
 | **M7** | Audit History & Final Polish | 📋 Planned | v0.1 | Filterable Timeline, Adapter Health Monitor, Long Path Support (`\\?\`) |
@@ -69,15 +69,15 @@
 ---
 
 ### [M3] Usage Readings, Source Badges & Honest Telemetry
-- [ ] **Tri-State Usage Model:**
+- [x] **Tri-State Usage Model:**
   - Strict classification: `official` | `estimated` | `unknown`.
   - Value fields: `value_used`, `value_limit`, `unit`, `reset_at`, `detail`.
-- [ ] **Truthful UI Rendering (`UsageBadge.tsx`):**
+- [x] **Truthful UI Rendering (`UsageBadge.tsx`):**
   - `official`: Green badge with verified metrics.
   - `estimated`: Yellow badge indicating estimated token/request counts.
   - `unknown`: Neutral gray badge + *"Check manually"* prompt + Refresh action.
-  - **Negative Constraint:** No `<progress>` bars, 0% defaults, or fabricated countdowns when source is `unknown`.
-- [ ] **Reset Countdown Engine:**
+  - **Negative Constraint (AC-08):** No `<progress>` bars, 0% defaults, or fabricated countdowns when source is `unknown`.
+- [x] **Reset Countdown Engine (AC-09):**
   - Only render countdown timer when `reset_at` is an explicit, verified timestamp provided by the upstream adapter.
 
 ---

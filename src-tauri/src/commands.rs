@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -9,6 +10,7 @@ use crate::flags::FeatureFlags;
 use crate::process::{self, Session, SpawnOptions};
 use crate::profiles::{self, CreateProfileInput, Profile};
 use crate::projects::{self, CreateProjectInput, Project, UpdateProjectInput};
+use crate::usage::{self, RecordUsageInput, UsageReading};
 use crate::AppState;
 
 /// Settings response returned to the frontend.
@@ -127,6 +129,42 @@ pub async fn delete_project(state: State<'_, Arc<AppState>>, id: String) -> Resu
 }
 
 // ==========================================
+// Usage Telemetry Commands (M3)
+// ==========================================
+
+/// Tauri command: get latest usage reading for a profile.
+#[tauri::command]
+pub async fn get_profile_usage(
+    state: State<'_, Arc<AppState>>,
+    profile_id: String,
+) -> Result<Option<UsageReading>, String> {
+    usage::get_latest_usage(state.db.pool(), &profile_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Tauri command: list latest usage reading for all profiles.
+#[tauri::command]
+pub async fn list_latest_usages(
+    state: State<'_, Arc<AppState>>,
+) -> Result<HashMap<String, UsageReading>, String> {
+    usage::list_latest_usages(state.db.pool())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Tauri command: manually record or simulate a usage reading.
+#[tauri::command]
+pub async fn record_usage(
+    state: State<'_, Arc<AppState>>,
+    input: RecordUsageInput,
+) -> Result<UsageReading, String> {
+    usage::record_usage(state.db.pool(), input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ==========================================
 // Session & Process Commands
 // ==========================================
 
@@ -166,7 +204,6 @@ pub async fn spawn_session(
     let profile_id = match resolved_profile_id {
         Some(id) => id,
         None => {
-            // Fallback to first available active profile if none specified
             let profiles = profiles::list_profiles(pool)
                 .await
                 .map_err(|e| e.to_string())?;

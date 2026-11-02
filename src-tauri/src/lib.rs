@@ -5,6 +5,7 @@ pub mod process;
 pub mod profiles;
 pub mod projects;
 pub mod single_instance;
+pub mod usage;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -97,6 +98,9 @@ pub fn run() {
             commands::update_project,
             commands::set_project_auto_switch,
             commands::delete_project,
+            commands::get_profile_usage,
+            commands::list_latest_usages,
+            commands::record_usage,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Gravity");
