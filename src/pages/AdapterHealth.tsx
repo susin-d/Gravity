@@ -1,16 +1,12 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  Activity,
-  CheckCircle2,
-  AlertTriangle,
-  Play,
   X,
   Clock,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
+import { Card } from "../components/ui/card";
 
 interface AdaptersHealthReport {
   claude: "ok" | "degraded";
@@ -27,22 +23,11 @@ interface LimitEvent {
   detail?: string;
 }
 
-interface DetectionResult {
-  is_limit: boolean;
-  raw_signal: string;
-  detail: string;
-}
-
 export default function AdapterHealth() {
   const [health, setHealth] = useState<AdaptersHealthReport | null>(null);
   const [limitEvents, setLimitEvents] = useState<LimitEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [testVendor, setTestVendor] = useState<"claude" | "codex">("claude");
-  const [testLine, setTestLine] = useState<string>("Rate limit reached: 429 Too Many Requests.");
-  const [testExitCode, setTestExitCode] = useState<string>("");
-  const [detectionResult, setDetectionResult] = useState<DetectionResult | null | undefined>(undefined);
 
   const loadData = async () => {
     try {
@@ -65,28 +50,13 @@ export default function AdapterHealth() {
     loadData();
   }, []);
 
-  const handleTestLine = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const exitCodeNum = testExitCode.trim() ? parseInt(testExitCode.trim(), 10) : null;
-      const res = await invoke<DetectionResult | null>("detect_line_limit", {
-        vendor: testVendor,
-        line: testLine,
-        exitCode: exitCodeNum,
-      });
-      setDetectionResult(res);
-    } catch (err) {
-      setError(String(err));
-    }
-  };
-
   return (
     <div className="p-6 max-w-5xl space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold text-text-primary">Adapter Health & Heuristics</h2>
+        <h2 className="text-lg font-semibold text-text-primary">Adapter Health</h2>
         <p className="text-xs text-text-tertiary mt-0.5">
-          Real-time parser status and sub-second rate limit heuristic evaluators.
+          Real-time parser status and recorded limit telemetry for Claude Code and OpenAI Codex.
         </p>
       </div>
 
@@ -121,122 +91,6 @@ export default function AdapterHealth() {
           loading={loading}
         />
       </div>
-
-      {/* Line evaluator */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-2">
-            <Activity className="h-4 w-4 text-gravity-400" />
-            <span>Rate Limit Evaluator (Sub-second Test)</span>
-          </CardTitle>
-          <p className="text-xs text-text-tertiary">
-            Test output lines against Claude Code and OpenAI Codex regex patterns.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <form onSubmit={handleTestLine} className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div>
-                <label className="form-label">Vendor</label>
-                <select
-                  value={testVendor}
-                  onChange={(e) => setTestVendor(e.target.value as "claude" | "codex")}
-                  className="input"
-                >
-                  <option value="claude">Claude Code</option>
-                  <option value="codex">OpenAI Codex</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="form-label">Terminal Output Line</label>
-                <input
-                  type="text"
-                  value={testLine}
-                  onChange={(e) => setTestLine(e.target.value)}
-                  className="input input-mono"
-                />
-              </div>
-
-              <div>
-                <label className="form-label">Exit Code (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 1"
-                  value={testExitCode}
-                  onChange={(e) => setTestExitCode(e.target.value)}
-                  className="input input-mono"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTestLine("Rate limit reached: 429 Too Many Requests. Reset at 2026-11-03T02:00:00Z.")
-                  }
-                  className="text-[11px] text-text-tertiary hover:text-text-secondary underline underline-offset-2"
-                >
-                  Sample Claude 429
-                </button>
-                <span className="text-border">·</span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTestLine("openai.RateLimitError: Error code: 429 - {'error': {'type': 'insufficient_quota'}}")
-                  }
-                  className="text-[11px] text-text-tertiary hover:text-text-secondary underline underline-offset-2"
-                >
-                  Sample Codex Quota
-                </button>
-                <span className="text-border">·</span>
-                <button
-                  type="button"
-                  onClick={() => setTestLine("Compiled 12 files successfully in 320ms.")}
-                  className="text-[11px] text-text-tertiary hover:text-text-secondary underline underline-offset-2"
-                >
-                  Sample Normal
-                </button>
-              </div>
-
-              <Button type="submit" size="sm" className="flex items-center gap-1.5">
-                <Play className="h-3 w-3 fill-current" />
-                <span>Evaluate Line</span>
-              </Button>
-            </div>
-          </form>
-
-          {/* Result */}
-          {detectionResult !== undefined && (
-            <div className="pt-3 border-t border-border-subtle">
-              {detectionResult ? (
-                <div className="bg-red-950/30 border border-red-800/60 text-red-300 p-3.5 rounded-xl flex items-center justify-between text-xs">
-                  <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <span className="font-semibold text-red-200 block mb-0.5">
-                        Limit Signal Detected
-                      </span>
-                      <p className="text-red-400">{detectionResult.detail}</p>
-                    </div>
-                  </div>
-                  <Badge variant="destructive" className="ml-3 uppercase">Triggered</Badge>
-                </div>
-              ) : (
-                <div className="bg-emerald-950/30 border border-emerald-800/60 text-emerald-300 p-3.5 rounded-xl flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    <span>Clean: No rate limit pattern matched.</span>
-                  </div>
-                  <Badge variant="success" className="ml-3 uppercase">Pass</Badge>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Limit Events Table */}
       <div>
