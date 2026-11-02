@@ -6,6 +6,7 @@ pub mod flags;
 pub mod process;
 pub mod profiles;
 pub mod projects;
+pub mod redact;
 pub mod single_instance;
 pub mod switching;
 pub mod usage;

@@ -5,6 +5,7 @@ import Profiles from "./pages/Profiles";
 import Projects from "./pages/Projects";
 import AdapterHealth from "./pages/AdapterHealth";
 import AutoSwitchConsent from "./pages/AutoSwitchConsent";
+import History from "./pages/History";
 
 type Page = "projects" | "profiles" | "adapters" | "autoswitch" | "settings" | "history";
 
@@ -74,12 +75,11 @@ function App() {
             label="History"
             active={currentPage === "history"}
             onClick={() => setCurrentPage("history")}
-            disabled
           />
         </div>
 
         <div className="p-3 border-t border-gray-800 text-xs text-gray-600">
-          M6 — Auto-Switch Engine
+          Gravity v0.1 — Ready
         </div>
       </nav>
 
@@ -90,9 +90,7 @@ function App() {
         {currentPage === "adapters" && <AdapterHealth />}
         {currentPage === "autoswitch" && <AutoSwitchConsent />}
         {currentPage === "settings" && <Settings />}
-        {currentPage === "history" && (
-          <Placeholder title="History" milestone="M7" />
-        )}
+        {currentPage === "history" && <History />}
       </main>
     </div>
   );
@@ -126,25 +124,6 @@ function NavItem({
         <span className="ml-2 text-[10px] text-gray-700 uppercase">soon</span>
       )}
     </button>
-  );
-}
-
-function Placeholder({
-  title,
-  milestone,
-}: {
-  title: string;
-  milestone: string;
-}) {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-600">{title}</h2>
-        <p className="mt-2 text-sm text-gray-700">
-          Coming in {milestone}
-        </p>
-      </div>
-    </div>
   );
 }
 
