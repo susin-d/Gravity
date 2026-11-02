@@ -162,8 +162,8 @@ export default function Projects() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-text-primary">Projects</h2>
-          <p className="text-xs text-text-tertiary mt-0.5">
+          <h2 className="text-lg font-semibold text-white">Projects</h2>
+          <p className="text-xs text-ink-low mt-0.5">
             Directory registry with isolation tags and terminal preferences.
           </p>
         </div>
@@ -207,8 +207,8 @@ export default function Projects() {
         </div>
       ) : projects.length === 0 ? (
         <div className="empty-state">
-          <p className="text-text-secondary text-sm font-medium">No projects registered</p>
-          <p className="text-text-tertiary text-xs mt-1">
+          <p className="text-ink-mid text-sm font-medium">No projects registered</p>
+          <p className="text-ink-low text-xs mt-1">
             Register a repository directory to assign default profiles and boundaries.
           </p>
           <Button
@@ -244,7 +244,7 @@ export default function Projects() {
                 {/* Info */}
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-text-primary text-sm">
+                    <span className="font-semibold text-white text-sm">
                       {proj.name}
                     </span>
                     <Badge variant={proj.tag}>{proj.tag}</Badge>
@@ -254,20 +254,20 @@ export default function Projects() {
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
-                    <Folder className="h-3 w-3 text-text-tertiary flex-shrink-0" />
+                  <div className="flex items-center gap-1.5 text-xs text-ink-low">
+                    <Folder className="h-3 w-3 text-ink-low flex-shrink-0" />
                     <span className="font-mono truncate" title={proj.path}>
                       {proj.path}
                     </span>
                   </div>
-                  <p className="text-xs text-text-tertiary">
+                  <p className="text-xs text-ink-low">
                     Default profile:{" "}
                     {defaultProfile ? (
-                      <span className="text-text-secondary font-medium">
+                      <span className="text-ink-mid font-medium">
                         {defaultProfile.label} ({defaultProfile.vendor})
                       </span>
                     ) : (
-                      <span className="italic text-text-tertiary">
+                      <span className="italic text-ink-low">
                         None assigned (uses first available)
                       </span>
                     )}
@@ -282,7 +282,7 @@ export default function Projects() {
                       className="flex flex-col items-end gap-1"
                       title={autoSwitchTooltip}
                     >
-                      <label className="text-[10px] text-text-tertiary">
+                      <label className="text-[10px] text-ink-low">
                         Auto-switch
                       </label>
                       <Switch
@@ -307,7 +307,7 @@ export default function Projects() {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleDeleteProject(proj.id, proj.name)}
-                    className="h-8 w-8 text-text-tertiary hover:text-red-400"
+                    className="h-8 w-8 text-ink-low hover:text-red-400"
                     title="Unregister project"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -410,7 +410,7 @@ export default function Projects() {
               </select>
             </div>
 
-            <DialogFooter className="pt-3 border-t border-border-subtle">
+            <DialogFooter className="pt-3 border-t border-edge-subtle">
               <Button
                 type="button"
                 variant="secondary"

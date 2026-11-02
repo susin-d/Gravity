@@ -22,8 +22,10 @@
   }
 
   body {
-    background-color: #09090b;
-    color: #f4f4f5;
+    /* Near-black body with subtle radial bloom — lighter center gives depth to blur layers */
+    background-color: #0a0a0a;
+    background-image: radial-gradient(ellipse at 50% 38%, #131313 0%, #060606 68%);
+    color: #ffffff;
     font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
     font-size: 0.875rem;
     line-height: 1.5;
@@ -31,39 +33,33 @@
     overflow: hidden;
   }
 
-  /* Unified scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  /* ── Scrollbar ─────────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: #3f3f46;
+    background: rgba(255, 255, 255, 0.12);
     border-radius: 3px;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #52525b;
-  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
 
-  /* Focus ring */
+  /* ── Focus ring ────────────────────────────────────────────────────────── */
   :focus-visible {
-    outline: 2px solid #6366f1;
+    outline: 2px solid rgba(255, 255, 255, 0.50);
     outline-offset: 2px;
   }
 
-  /* Text selection */
+  /* ── Text selection ────────────────────────────────────────────────────── */
   ::selection {
-    background: rgba(99, 102, 241, 0.3);
-    color: #f4f4f5;
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
   }
 
-  /* Custom caret */
+  /* ── Caret ─────────────────────────────────────────────────────────────── */
   input, textarea {
-    caret-color: #818cf8;
+    caret-color: #ffffff;
   }
 
+  /* ── Drag region ───────────────────────────────────────────────────────── */
   [data-tauri-drag-region] {
     -webkit-user-select: none;
     user-select: none;
@@ -72,32 +68,44 @@
 }
 
 @layer components {
-  /* ── Buttons ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     BUTTONS
+     ══════════════════════════════════════════════════════════════════════ */
   .btn {
-    @apply inline-flex items-center gap-1.5 rounded font-medium transition-colors
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gravity-400
-           disabled:pointer-events-none disabled:opacity-40;
+    @apply inline-flex items-center gap-1.5 rounded font-medium transition-all duration-150
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30
+           disabled:pointer-events-none disabled:opacity-35;
     font-size: 0.8125rem;
     line-height: 1;
     padding: 0.45rem 0.875rem;
     white-space: nowrap;
   }
 
+  /* Primary — glass white button with glow on hover */
   .btn-primary {
-    @apply btn bg-gravity-600 text-white hover:bg-gravity-500 active:bg-gravity-700;
+    @apply btn bg-glass-2 text-white border border-edge-DEFAULT
+           hover:bg-glass-4 hover:border-edge-strong
+           active:bg-glass-3;
+    &:hover {
+      box-shadow: 0 0 16px rgba(255, 255, 255, 0.16);
+    }
   }
 
+  /* Secondary — subtle glass */
   .btn-secondary {
-    @apply btn bg-surface-4 text-text-primary hover:bg-border-strong border border-border-subtle;
+    @apply btn bg-glass-2 text-ink-high border border-edge-subtle
+           hover:bg-glass-3 hover:border-edge-DEFAULT hover:text-white;
   }
 
+  /* Ghost — transparent, minimal */
   .btn-ghost {
-    @apply btn text-text-secondary hover:text-text-primary hover:bg-surface-4;
+    @apply btn text-ink-mid hover:text-white hover:bg-glass-2;
     padding: 0.35rem 0.625rem;
   }
 
+  /* Danger */
   .btn-danger {
-    @apply btn text-red-400 hover:text-red-300 hover:bg-red-950/30;
+    @apply btn text-red-400 hover:text-red-300 hover:bg-red-950/20;
     padding: 0.35rem 0.625rem;
   }
 
@@ -106,12 +114,15 @@
     font-size: 0.75rem;
   }
 
-  /* ── Inputs ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     INPUTS
+     ══════════════════════════════════════════════════════════════════════ */
   .input {
-    @apply w-full rounded border border-border-subtle bg-surface-0 px-3 py-2
-           text-sm text-text-primary placeholder-text-tertiary
-           transition-colors
-           focus:outline-none focus:border-gravity-500 focus:ring-1 focus:ring-gravity-500/30;
+    @apply w-full rounded border border-edge-subtle bg-glass-1 px-3 py-2
+           text-sm text-white placeholder-ink-low
+           transition-all duration-150
+           focus:outline-none focus:border-edge focus:ring-1 focus:ring-white/15
+           focus:bg-glass-2;
   }
 
   .input-mono {
@@ -120,22 +131,34 @@
 
   select.input {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2371717a' viewBox='0 0 16 16'%3E%3Cpath d='M8 10.5 3.5 6h9L8 10.5z'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(255,255,255,0.4)' viewBox='0 0 16 16'%3E%3Cpath d='M8 10.5 3.5 6h9L8 10.5z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px center;
     padding-right: 2rem;
   }
 
-  /* ── Cards ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     CARDS
+     ══════════════════════════════════════════════════════════════════════ */
   .card {
-    @apply rounded-lg border border-border-subtle bg-surface-2;
+    @apply rounded-xl border border-edge-subtle bg-glass-2 backdrop-blur-2xl;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+                0 4px 24px rgba(0, 0, 0, 0.50);
   }
 
   .card-hover {
-    @apply card transition-colors hover:border-border-DEFAULT hover:bg-surface-3;
+    @apply card transition-all duration-200
+           hover:border-edge-DEFAULT hover:bg-glass-3;
+    &:hover {
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
+                  0 8px 32px rgba(0, 0, 0, 0.60),
+                  0 0 20px rgba(255, 255, 255, 0.03);
+    }
   }
 
-  /* ── Tags ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     TAGS — keep all semantic hues
+     ══════════════════════════════════════════════════════════════════════ */
   .tag {
     @apply inline-flex items-center rounded px-1.5 py-0.5 font-mono font-medium;
     font-size: 0.65rem;
@@ -143,43 +166,68 @@
     text-transform: uppercase;
   }
 
-  .tag-personal { @apply tag bg-blue-950/60  text-blue-300  ring-1 ring-blue-800/50; }
+  .tag-personal { @apply tag bg-blue-950/60   text-blue-300   ring-1 ring-blue-800/50; }
   .tag-work     { @apply tag bg-violet-950/60 text-violet-300 ring-1 ring-violet-800/50; }
   .tag-client   { @apply tag bg-amber-950/60  text-amber-300  ring-1 ring-amber-800/50; }
-  .tag-claude   { @apply tag bg-orange-950/60 text-orange-300  ring-1 ring-orange-800/50; }
+  .tag-claude   { @apply tag bg-orange-950/60 text-orange-300 ring-1 ring-orange-800/50; }
   .tag-codex    { @apply tag bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-800/50; }
 
-  /* ── Status badges ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     STATUS BADGES — semantic colors preserved
+     ══════════════════════════════════════════════════════════════════════ */
   .badge-success  { @apply tag bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-800/50; }
-  .badge-warning  { @apply tag bg-amber-950/60  text-amber-300  ring-1 ring-amber-800/50; }
-  .badge-danger   { @apply tag bg-red-950/60    text-red-300    ring-1 ring-red-800/50; }
-  .badge-neutral  { @apply tag bg-surface-4     text-text-tertiary ring-1 ring-border-subtle; }
-  .badge-info     { @apply tag bg-blue-950/60   text-blue-300   ring-1 ring-blue-800/50; }
+  .badge-warning  { @apply tag bg-amber-950/60   text-amber-300   ring-1 ring-amber-800/50; }
+  .badge-danger   { @apply tag bg-red-950/60     text-red-300     ring-1 ring-red-800/50; }
+  .badge-neutral  { @apply tag bg-glass-3        text-ink-mid     ring-1 ring-edge-subtle; }
+  .badge-info     { @apply tag bg-blue-950/60    text-blue-300    ring-1 ring-blue-800/50; }
 
-  /* ── Section heading ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     SECTION HEADING
+     ══════════════════════════════════════════════════════════════════════ */
   .section-heading {
-    @apply text-2xs font-semibold uppercase tracking-widest text-text-tertiary;
+    @apply text-2xs font-semibold uppercase tracking-widest text-ink-low;
     letter-spacing: 0.09em;
   }
 
-  /* ── Skeleton ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     SKELETON
+     ══════════════════════════════════════════════════════════════════════ */
   .skeleton {
-    background: linear-gradient(90deg, #1c1c22 25%, #242429 50%, #1c1c22 75%);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 25%,
+      rgba(255, 255, 255, 0.09) 50%,
+      rgba(255, 255, 255, 0.04) 75%
+    );
     background-size: 200% 100%;
     @apply rounded animate-shimmer;
   }
 
-  /* ── Divider ── */
-  .divider { @apply border-t border-border-subtle; }
+  /* ══════════════════════════════════════════════════════════════════════
+     DIVIDER
+     ══════════════════════════════════════════════════════════════════════ */
+  .divider { @apply border-t border-edge-subtle; }
 
-  /* ── Form label ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     FORM LABEL
+     ══════════════════════════════════════════════════════════════════════ */
   .form-label {
-    @apply block text-xs font-medium text-text-secondary mb-1;
+    @apply block text-xs font-medium text-ink-mid mb-1;
   }
 
-  /* ── Empty state ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     EMPTY STATE
+     ══════════════════════════════════════════════════════════════════════ */
   .empty-state {
-    @apply flex flex-col items-center justify-center rounded-lg border border-dashed
-           border-border-subtle py-16 text-center;
+    @apply flex flex-col items-center justify-center rounded-xl border border-dashed
+           border-edge-subtle py-16 text-center;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     GLASS PANEL UTILITY (for non-.card surfaces like sidebar sub-sections)
+     ══════════════════════════════════════════════════════════════════════ */
+  .glass-panel {
+    @apply bg-glass-2 backdrop-blur-2xl border border-edge-subtle rounded-xl;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
   }
 }

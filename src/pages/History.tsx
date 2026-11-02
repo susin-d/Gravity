@@ -256,12 +256,12 @@ export default function History() {
   return (
     <div className="p-6 max-w-5xl space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-border-subtle">
+      <div className="flex items-center justify-between pb-4 border-b border-edge-subtle">
         <div>
-          <h2 className="text-lg font-semibold text-text-primary">
+          <h2 className="text-lg font-semibold text-white">
             Audit Timeline & History
           </h2>
-          <p className="text-xs text-text-tertiary mt-0.5">
+          <p className="text-xs text-ink-low mt-0.5">
             Immutable record of sessions, rate limits, and profile switches (Milestone M7)
           </p>
         </div>
@@ -298,7 +298,7 @@ export default function History() {
 
       {/* Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <MetricCard label="Total Sessions" value={sessions.length} valueClass="text-text-primary" />
+        <MetricCard label="Total Sessions" value={sessions.length} valueClass="text-white" />
         <MetricCard label="Rate Limits" value={limits.length} valueClass="text-amber-400" />
         <MetricCard label="Switches Done" value={completedSwitchesCount} valueClass="text-emerald-400" />
         <MetricCard label="Client Blocks" value={clientBlocksCount} valueClass="text-red-400" />
@@ -308,12 +308,12 @@ export default function History() {
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <div className="flex items-center gap-1.5">
-            <SlidersHorizontal className="h-3.5 w-3.5 text-text-tertiary" />
-            <span className="text-text-tertiary">Event:</span>
+            <SlidersHorizontal className="h-3.5 w-3.5 text-ink-low" />
+            <span className="text-ink-low">Event:</span>
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-surface-1 border border-border text-text-secondary rounded-lg px-2.5 py-1 focus:outline-none focus:border-gravity-500"
+              className="bg-glass-1 border border-edge-DEFAULT text-ink-mid rounded-lg px-2.5 py-1 focus:outline-none focus:border-edge-strong"
             >
               <option value="all">All</option>
               <option value="switch">Switches</option>
@@ -323,11 +323,11 @@ export default function History() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="text-text-tertiary">Project:</span>
+            <span className="text-ink-low">Project:</span>
             <select
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
-              className="bg-surface-1 border border-border text-text-secondary rounded-lg px-2.5 py-1 focus:outline-none focus:border-gravity-500"
+              className="bg-glass-1 border border-edge-DEFAULT text-ink-mid rounded-lg px-2.5 py-1 focus:outline-none focus:border-edge-strong"
             >
               <option value="all">All Projects</option>
               {projects.map((pr) => (
@@ -339,13 +339,13 @@ export default function History() {
           </div>
 
           <div className="flex-1 min-w-[180px] relative">
-            <Search className="h-3.5 w-3.5 text-text-tertiary absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Search className="h-3.5 w-3.5 text-ink-low absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search events…"
-              className="w-full bg-surface-1 border border-border text-text-secondary rounded-lg pl-8 pr-3 py-1 placeholder-text-tertiary focus:outline-none focus:border-gravity-500"
+              className="w-full bg-glass-1 border border-edge-DEFAULT text-ink-mid rounded-lg pl-8 pr-3 py-1 placeholder-ink-low focus:outline-none focus:border-edge-strong"
             />
           </div>
 
@@ -359,7 +359,7 @@ export default function History() {
                 setProjectFilter("all");
                 setSearchQuery("");
               }}
-              className="h-7 px-2 text-text-tertiary hover:text-text-secondary"
+              className="h-7 px-2 text-ink-low hover:text-ink-mid"
             >
               Clear
             </Button>
@@ -379,8 +379,8 @@ export default function History() {
         </div>
       ) : filteredTimeline.length === 0 ? (
         <div className="empty-state">
-          <p className="text-text-secondary text-sm font-medium">No events recorded</p>
-          <p className="text-text-tertiary text-xs mt-1">
+          <p className="text-ink-mid text-sm font-medium">No events recorded</p>
+          <p className="text-ink-low text-xs mt-1">
             Launch sessions or trigger profile switches to view audit entries.
           </p>
         </div>
@@ -396,19 +396,19 @@ export default function History() {
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-sm text-text-primary">
+                    <span className="font-medium text-sm text-white">
                       {item.title}
                     </span>
                     <Badge variant={item.badgeVariant}>{item.badgeText}</Badge>
                   </div>
-                  <p className="text-xs text-text-tertiary">{item.subtitle}</p>
+                  <p className="text-xs text-ink-low">{item.subtitle}</p>
                 </div>
-                <div className="text-right text-[11px] text-text-tertiary font-mono whitespace-nowrap flex-shrink-0">
+                <div className="text-right text-[11px] text-ink-low font-mono whitespace-nowrap flex-shrink-0">
                   {new Date(item.timestamp).toLocaleString()}
                 </div>
               </div>
               {item.detail && (
-                <div className="bg-surface-1 border border-border-subtle rounded-lg p-2.5 text-xs font-mono text-text-tertiary break-all">
+                <div className="bg-glass-1 border border-edge-subtle rounded-lg p-2.5 text-xs font-mono text-ink-low break-all">
                   {item.detail}
                 </div>
               )}
@@ -431,7 +431,7 @@ function MetricCard({
 }) {
   return (
     <Card className="p-4">
-      <span className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold block mb-1">
+      <span className="text-[10px] text-ink-low uppercase tracking-wider font-semibold block mb-1">
         {label}
       </span>
       <p className={`text-2xl font-semibold ${valueClass}`}>{value}</p>

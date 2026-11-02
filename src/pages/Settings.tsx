@@ -22,14 +22,14 @@ export default function Settings() {
   return (
     <div className="p-6 max-w-2xl">
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-text-primary">Settings</h2>
-        <p className="text-xs text-text-tertiary mt-0.5">
+        <h2 className="text-lg font-semibold text-white">Settings</h2>
+        <p className="text-xs text-ink-low mt-0.5">
           Application data paths and feature flag status.
         </p>
       </div>
 
       {error && (
-        <div className="bg-red-950/30 border border-red-800/60 rounded-lg p-3 mb-4">
+        <div className="bg-red-950/20 border border-red-800/40 rounded-lg p-3 mb-4">
           <p className="text-sm text-red-300">{error}</p>
         </div>
       )}
@@ -46,10 +46,10 @@ export default function Settings() {
           <SettingsSection title="Feature Flags">
             <div className="flex items-center justify-between py-1">
               <div>
-                <p className="text-sm font-medium text-text-primary">Auto-switch</p>
-                <p className="text-xs text-text-tertiary mt-0.5">
+                <p className="text-sm font-medium text-white">Auto-switch</p>
+                <p className="text-xs text-ink-low mt-0.5">
                   Automated profile switching on rate-limit hit. Edit{" "}
-                  <code className="font-mono text-text-secondary">flags.toml</code> to change.
+                  <code className="font-mono text-ink-mid">flags.toml</code> to change.
                 </p>
               </div>
               <span className={settings.flags.auto_switch ? "badge-success" : "badge-neutral"}>
@@ -85,8 +85,8 @@ function SettingsSection({ title, children }: { title: string; children: React.R
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start gap-4 py-1">
-      <span className="text-xs text-text-tertiary min-w-[80px] flex-shrink-0">{label}</span>
-      <code className="text-xs text-text-secondary break-all font-mono leading-relaxed">{value}</code>
+      <span className="text-xs text-ink-low min-w-[80px] flex-shrink-0">{label}</span>
+      <code className="text-xs text-ink-mid break-all font-mono leading-relaxed">{value}</code>
     </div>
   );
 }

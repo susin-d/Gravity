@@ -4,21 +4,21 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gravity-400 disabled:pointer-events-none disabled:opacity-50 select-none",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:pointer-events-none disabled:opacity-35 select-none",
   {
     variants: {
       variant: {
         default:
-          "bg-gravity-600 text-white shadow hover:bg-gravity-500 active:bg-gravity-700",
+          "bg-glass-2 text-white border border-edge-DEFAULT hover:bg-glass-4 hover:border-edge-strong active:bg-glass-3 hover:shadow-glow-sm",
         destructive:
-          "bg-red-950/80 text-red-300 border border-red-800/80 hover:bg-red-900/90 active:bg-red-950",
+          "bg-red-950/20 text-red-300 border border-red-800/50 hover:bg-red-950/40 active:bg-red-950/60",
         outline:
-          "border border-border bg-surface-1 hover:bg-surface-2 text-text-primary",
+          "border border-edge-DEFAULT bg-transparent text-white hover:bg-glass-2",
         secondary:
-          "bg-surface-2 text-text-primary border border-border-subtle hover:bg-surface-3",
+          "bg-glass-2 text-ink-high border border-edge-subtle hover:bg-glass-3 hover:border-edge-DEFAULT hover:text-white",
         ghost:
-          "hover:bg-surface-2 text-text-secondary hover:text-text-primary",
-        link: "text-gravity-400 underline-offset-4 hover:underline",
+          "text-ink-mid hover:bg-glass-2 hover:text-white",
+        link: "text-white underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2",
