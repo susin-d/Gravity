@@ -3,6 +3,7 @@ name = "gravity"
 version = "0.1.0"
 edition = "2021"
 description = "AI CLI account manager for Windows"
+license = "MIT"
 
 [lib]
 name = "gravity_lib"

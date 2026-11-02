@@ -78,4 +78,4 @@ cargo test -- --nocapture
 
 ## License
 
-Internal Developer Utility — All Rights Reserved.
+This project is licensed under the [MIT License](LICENSE).
