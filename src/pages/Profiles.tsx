@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import UsageBadge, { UsageReading } from "../components/UsageBadge";
 
 export interface Profile {
   id: string;
@@ -25,6 +26,7 @@ export interface Session {
 export default function Profiles() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [usages, setUsages] = useState<Record<string, UsageReading>>({});
   const [wtAvailable, setWtAvailable] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,18 +41,21 @@ export default function Profiles() {
 
   // Session launching state
   const [launchingId, setLaunchingId] = useState<string | null>(null);
+  const [refreshingUsageId, setRefreshingUsageId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [profs, sess, wt] = await Promise.all([
+      const [profs, sess, wt, latestUsages] = await Promise.all([
         invoke<Profile[]>("list_profiles"),
         invoke<Session[]>("list_sessions"),
         invoke<boolean>("check_terminal_available"),
+        invoke<Record<string, UsageReading>>("list_latest_usages"),
       ]);
       setProfiles(profs);
       setSessions(sess);
       setWtAvailable(wt);
+      setUsages(latestUsages);
       setError(null);
     } catch (err) {
       setError(String(err));
@@ -121,6 +126,57 @@ export default function Profiles() {
     }
   };
 
+  // Quick simulation helper to test tri-state readings (AC-08 & AC-09)
+  const handleSimulateUsage = async (profileId: string, state: "official" | "estimated" | "unknown") => {
+    try {
+      setRefreshingUsageId(profileId);
+      let payload;
+      if (state === "official") {
+        // Reset in 2.5 hours
+        const resetTime = new Date(Date.now() + 2.5 * 3600 * 1000).toISOString();
+        payload = {
+          profile_id: profileId,
+          source: "official",
+          window: "daily",
+          value_used: 18240,
+          value_limit: 50000,
+          unit: "tokens",
+          reset_at: resetTime,
+          detail: "Official API quota reading",
+        };
+      } else if (state === "estimated") {
+        payload = {
+          profile_id: profileId,
+          source: "estimated",
+          window: "5min",
+          value_used: 42,
+          value_limit: 100,
+          unit: "reqs",
+          reset_at: null, // No reset time given upstream
+          detail: "Estimated from terminal response rate",
+        };
+      } else {
+        payload = {
+          profile_id: profileId,
+          source: "unknown",
+          window: null,
+          value_used: null,
+          value_limit: null,
+          unit: null,
+          reset_at: null,
+          detail: "CLI version does not support automated telemetry.",
+        };
+      }
+
+      await invoke("record_usage", { input: payload });
+      await loadData();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setRefreshingUsageId(null);
+    }
+  };
+
   return (
     <div className="p-6 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
@@ -177,6 +233,8 @@ export default function Profiles() {
               client: "bg-amber-900/50 text-amber-300 border-amber-800",
             }[p.tag];
 
+            const usage = usages[p.id];
+
             return (
               <div
                 key={p.id}
@@ -205,17 +263,49 @@ export default function Profiles() {
                     </button>
                   </div>
 
-                  <div className="mt-4 text-xs space-y-1">
+                  <div className="mt-3 text-xs space-y-1">
                     <div className="text-gray-500 font-mono truncate" title={p.config_dir}>
                       📂 <span className="text-gray-400">{p.config_dir}</span>
                     </div>
-                    <div className="text-gray-500 font-mono">
-                      🔑 <span className="text-gray-400">Windows Credential Manager</span>
+                  </div>
+
+                  {/* Real-time Usage Telemetry Badge (M3) */}
+                  <div className="mt-4">
+                    <UsageBadge
+                      reading={usage}
+                      onRefresh={() => handleSimulateUsage(p.id, "official")}
+                      refreshing={refreshingUsageId === p.id}
+                    />
+
+                    {/* Quick state switcher for verification of AC-08 & AC-09 */}
+                    <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] text-gray-600">
+                      <span>Test state:</span>
+                      <button
+                        onClick={() => handleSimulateUsage(p.id, "official")}
+                        className="hover:text-emerald-400 hover:underline"
+                        title="Set to Official reading with reset timer"
+                      >
+                        [Official]
+                      </button>
+                      <button
+                        onClick={() => handleSimulateUsage(p.id, "estimated")}
+                        className="hover:text-amber-400 hover:underline"
+                        title="Set to Estimated reading without timer"
+                      >
+                        [Estimated]
+                      </button>
+                      <button
+                        onClick={() => handleSimulateUsage(p.id, "unknown")}
+                        className="hover:text-gray-300 hover:underline"
+                        title="Set to Unknown state (AC-08 test)"
+                      >
+                        [Unknown]
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-gray-800 flex justify-between items-center">
+                <div className="mt-4 pt-3 border-t border-gray-800 flex justify-between items-center">
                   <span className="text-[11px] text-gray-600">
                     ID: {p.id.slice(0, 8)}…
                   </span>
