@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import UsageBadge, { UsageReading } from "../components/UsageBadge";
+import LimitToast from "../components/LimitToast";
+import ClientBoundaryModal from "../components/ClientBoundaryModal";
 
 export interface Profile {
   id: string;
@@ -23,6 +25,16 @@ export interface Session {
   status: string;
 }
 
+interface SwitchExecutionResult {
+  switch_event: {
+    id: string;
+    outcome: string;
+  };
+  new_session?: Session;
+  requires_client_confirmation: boolean;
+  confirmation_message?: string;
+}
+
 export default function Profiles() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -42,6 +54,18 @@ export default function Profiles() {
   // Session launching state
   const [launchingId, setLaunchingId] = useState<string | null>(null);
   const [refreshingUsageId, setRefreshingUsageId] = useState<string | null>(null);
+
+  // M5: Rate limit toast & client modal simulation states
+  const [activeToast, setActiveToast] = useState<{
+    fromProfile: Profile;
+    suggestedProfile: Profile | null;
+    rawSignal?: string;
+  } | null>(null);
+
+  const [clientBoundaryPrompt, setClientBoundaryPrompt] = useState<{
+    fromProfile: Profile;
+    targetProfile: Profile;
+  } | null>(null);
 
   const loadData = async () => {
     try {
@@ -83,7 +107,6 @@ export default function Profiles() {
         },
       });
 
-      // Reset form
       setLabel("");
       setSecret("");
       setTag("personal");
@@ -126,13 +149,98 @@ export default function Profiles() {
     }
   };
 
+  // M5: Trigger rate limit simulation and fetch MRU suggestion
+  const handleSimulateLimit = async (fromProfile: Profile) => {
+    try {
+      const suggestion = await invoke<Profile | null>("suggest_fallback_profile", {
+        fromProfileId: fromProfile.id,
+      });
+
+      setActiveToast({
+        fromProfile,
+        suggestedProfile: suggestion,
+        rawSignal: `Rate limit reached on ${fromProfile.label}. 429 Too Many Requests. Quota exhausted.`,
+      });
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
+  // M5: Handle clicking Continue from Limit Toast
+  const handleContinueSwitch = async (targetProfile: Profile) => {
+    if (!activeToast) return;
+    const fromProfile = activeToast.fromProfile;
+
+    // Check client boundary
+    if (fromProfile.tag === "client" || targetProfile.tag === "client") {
+      setClientBoundaryPrompt({ fromProfile, targetProfile });
+      setActiveToast(null);
+      return;
+    }
+
+    try {
+      await invoke<SwitchExecutionResult>("execute_profile_switch", {
+        sessionId: null,
+        fromProfileId: fromProfile.id,
+        toProfileId: targetProfile.id,
+        projectId: null,
+        reason: "limit",
+        clientConfirmed: false,
+      });
+      setActiveToast(null);
+      await loadData();
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
+  // M5: Confirm client boundary modal
+  const handleConfirmClientModal = async () => {
+    if (!clientBoundaryPrompt) return;
+    const { fromProfile, targetProfile } = clientBoundaryPrompt;
+
+    try {
+      await invoke<SwitchExecutionResult>("execute_profile_switch", {
+        sessionId: null,
+        fromProfileId: fromProfile.id,
+        toProfileId: targetProfile.id,
+        projectId: null,
+        reason: "limit",
+        clientConfirmed: true,
+      });
+      setClientBoundaryPrompt(null);
+      await loadData();
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
+  // M5: Cancel client boundary modal (AC-07)
+  const handleCancelClientModal = async () => {
+    if (!clientBoundaryPrompt) return;
+    const { fromProfile, targetProfile } = clientBoundaryPrompt;
+
+    try {
+      await invoke("record_switch_cancellation", {
+        sessionId: null,
+        fromProfileId: fromProfile.id,
+        toProfileId: targetProfile.id,
+        projectId: null,
+        reason: "limit",
+        detail: "User clicked Cancel on client boundary modal",
+      });
+      setClientBoundaryPrompt(null);
+    } catch (err) {
+      setError(String(err));
+    }
+  };
+
   // Quick simulation helper to test tri-state readings (AC-08 & AC-09)
   const handleSimulateUsage = async (profileId: string, state: "official" | "estimated" | "unknown") => {
     try {
       setRefreshingUsageId(profileId);
       let payload;
       if (state === "official") {
-        // Reset in 2.5 hours
         const resetTime = new Date(Date.now() + 2.5 * 3600 * 1000).toISOString();
         payload = {
           profile_id: profileId,
@@ -152,7 +260,7 @@ export default function Profiles() {
           value_used: 42,
           value_limit: 100,
           unit: "reqs",
-          reset_at: null, // No reset time given upstream
+          reset_at: null,
           detail: "Estimated from terminal response rate",
         };
       } else {
@@ -278,29 +386,35 @@ export default function Profiles() {
                     />
 
                     {/* Quick state switcher for verification of AC-08 & AC-09 */}
-                    <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] text-gray-600">
-                      <span>Test state:</span>
+                    <div className="mt-2 flex items-center justify-between text-[10px] text-gray-600">
                       <button
-                        onClick={() => handleSimulateUsage(p.id, "official")}
-                        className="hover:text-emerald-400 hover:underline"
-                        title="Set to Official reading with reset timer"
+                        onClick={() => handleSimulateLimit(p)}
+                        className="text-amber-500 hover:text-amber-300 font-medium"
+                        title="Simulate rate limit hit to test M5 Limit Toast"
                       >
-                        [Official]
+                        ⚡ Simulate Limit Hit
                       </button>
-                      <button
-                        onClick={() => handleSimulateUsage(p.id, "estimated")}
-                        className="hover:text-amber-400 hover:underline"
-                        title="Set to Estimated reading without timer"
-                      >
-                        [Estimated]
-                      </button>
-                      <button
-                        onClick={() => handleSimulateUsage(p.id, "unknown")}
-                        className="hover:text-gray-300 hover:underline"
-                        title="Set to Unknown state (AC-08 test)"
-                      >
-                        [Unknown]
-                      </button>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleSimulateUsage(p.id, "official")}
+                          className="hover:text-emerald-400 hover:underline"
+                        >
+                          [Official]
+                        </button>
+                        <button
+                          onClick={() => handleSimulateUsage(p.id, "estimated")}
+                          className="hover:text-amber-400 hover:underline"
+                        >
+                          [Est]
+                        </button>
+                        <button
+                          onClick={() => handleSimulateUsage(p.id, "unknown")}
+                          className="hover:text-gray-300 hover:underline"
+                        >
+                          [Unknown]
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -356,6 +470,28 @@ export default function Profiles() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* M5: Limit Toast Notification */}
+      {activeToast && (
+        <LimitToast
+          fromProfile={activeToast.fromProfile}
+          suggestedProfile={activeToast.suggestedProfile}
+          rawSignal={activeToast.rawSignal}
+          onContinue={handleContinueSwitch}
+          onStay={() => setActiveToast(null)}
+          onManualSelect={() => setActiveToast(null)}
+        />
+      )}
+
+      {/* M5: Client Boundary Confirmation Modal (AC-07) */}
+      {clientBoundaryPrompt && (
+        <ClientBoundaryModal
+          targetProfile={clientBoundaryPrompt.targetProfile}
+          fromProfile={clientBoundaryPrompt.fromProfile}
+          onConfirm={handleConfirmClientModal}
+          onCancel={handleCancelClientModal}
+        />
       )}
 
       {/* Create Profile Modal */}
