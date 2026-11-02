@@ -25,6 +25,10 @@ When working on this codebase:
    - Client-tagged projects (`tag == 'client'`) CANNOT be auto-switched under any circumstance.
 5. **Always stop at Milestone boundaries:**
    - Stop and report status, Windows-verified checks, and open questions before moving to the next milestone.
+6. **Feature Branching & Merge Discipline:**
+   - When implementing any new feature or milestone work, ALWAYS create a dedicated git branch (e.g. `feat/<feature-name>` or `milestone/m<N>-<name>`).
+   - Never develop or commit feature changes directly on `master`.
+   - Once the feature is fully implemented, all verification checks pass (`cargo check`, `cargo test`, `pnpm tsc --noEmit`), and acceptance criteria are met, merge the feature branch back into `master` and clean up the feature branch.
 
 ---
 
@@ -173,3 +177,13 @@ pnpm tauri dev
 3. **Audit Trail:**
    - Every profile switch must write a record to `switch_events` with `reason` and `outcome`.
    - Never mutate or overwrite historical session logs.
+4. **Git Branching & Lifecycle:**
+   - **Start of Feature/Milestone:** `git checkout -b feat/<name>` (or `milestone/m<N>-<name>`).
+   - **Development:** Commit logical incremental units with descriptive semantic messages (`feat: ...`, `fix: ...`, `test: ...`).
+   - **Verification:** Run all automated tests on the feature branch.
+   - **Completion & Merge:**
+     ```powershell
+     git checkout master
+     git merge --no-ff feat/<name> -m "feat: merge <name> into master"
+     git branch -d feat/<name>
+     ```
