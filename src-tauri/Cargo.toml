@@ -37,3 +37,7 @@ dirs = "5"
 
 [dev-dependencies]
 tempfile = "3"
+
+[profile.dev]
+debug = 1 # Keep debug builds lean by emitting line tables only instead of full debug symbols
+
