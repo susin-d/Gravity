@@ -12,6 +12,7 @@ import AutoSwitchConsent from "./pages/AutoSwitchConsent";
 import Settings from "./pages/Settings";
 import History from "./pages/History";
 import { UsageReading } from "./components/UsageBadge";
+import { SettingsSection } from "./components/layout/panels/SettingsPanel";
 
 interface AppSettings {
   flags: { auto_switch: boolean };
@@ -28,6 +29,10 @@ export default function App() {
   const [activeSessions, setActiveSessions] = useState<Session[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedAdapter, setSelectedAdapter] = useState<"claude" | "codex" | null>(null);
+  const [selectedSettingsSection, setSelectedSettingsSection] =
+    useState<SettingsSection>("database");
 
   const [autoSwitchFlag, setAutoSwitchFlag] = useState(false);
 
@@ -87,6 +92,26 @@ export default function App() {
     refreshData();
   }, [refreshData]);
 
+  // Keyboard shortcuts advertised by the titlebar menus.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || e.altKey || e.metaKey) return;
+      const key = e.key.toLowerCase();
+      if (key === "n") {
+        e.preventDefault();
+        navigateTo("workspace");
+      } else if (key === "p") {
+        e.preventDefault();
+        navigateTo("projects");
+      } else if (key === "b") {
+        e.preventDefault();
+        setSidebarOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [navigateTo]);
+
   // Keep active profile synced with active project's default if project changes
   const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0] || null;
   const activeProfile =
@@ -105,6 +130,18 @@ export default function App() {
     }
     return name.slice(0, 2).toUpperCase();
   };
+
+  const handleRailTabClick = useCallback(
+    (tab: NavTab) => {
+      if (tab === activeTab) {
+        setSidebarOpen((prev) => !prev);
+      } else {
+        setSidebarOpen(true);
+        navigateTo(tab);
+      }
+    },
+    [activeTab, navigateTo]
+  );
 
   return (
     <div
@@ -132,7 +169,7 @@ export default function App() {
         {/* Leftmost Activity Rail */}
         <ActivityRail
           activeTab={activeTab}
-          onSelectTab={navigateTo}
+          onSelectTab={handleRailTabClick}
           autoSwitchFlag={autoSwitchFlag}
           activeProfileInitials={getProfileInitials(activeProfile?.label)}
           activeProfileName={activeProfile?.label}
@@ -142,10 +179,16 @@ export default function App() {
         {/* Collapsible Secondary Sidebar */}
         <SecondarySidebar
           isOpen={sidebarOpen}
+          activeTab={activeTab}
           projects={projects}
           profiles={profiles}
+          usages={usages}
           activeProjectId={activeProjectId}
           activeProfileId={activeProfileId}
+          selectedEventId={selectedEventId}
+          selectedAdapter={selectedAdapter}
+          selectedSettingsSection={selectedSettingsSection}
+          autoSwitchFlag={autoSwitchFlag}
           onSelectProject={(id) => {
             setActiveProjectId(id);
             if (activeTab !== "workspace") {
@@ -153,6 +196,9 @@ export default function App() {
             }
           }}
           onSelectProfile={setActiveProfileId}
+          onSelectEvent={setSelectedEventId}
+          onSelectAdapter={setSelectedAdapter}
+          onSelectSettingsSection={setSelectedSettingsSection}
           onNewSession={() => navigateTo("workspace")}
           onOpenCreateProject={() => navigateTo("projects")}
         />
@@ -184,12 +230,34 @@ export default function App() {
                   }}
                 />
               )}
-              {activeTab === "projects" && <Projects />}
-              {activeTab === "profiles" && <Profiles />}
-              {activeTab === "adapters" && <AdapterHealth />}
+              {activeTab === "projects" && (
+                <Projects
+                  selectedProjectId={activeProjectId}
+                  onSelectProject={(id) => {
+                    setActiveProjectId(id);
+                    navigateTo("workspace");
+                  }}
+                />
+              )}
+              {activeTab === "profiles" && (
+                <Profiles
+                  selectedProfileId={activeProfileId}
+                  onSelectProfile={setActiveProfileId}
+                />
+              )}
+              {activeTab === "adapters" && (
+                <AdapterHealth selectedAdapter={selectedAdapter} />
+              )}
               {activeTab === "autoswitch" && <AutoSwitchConsent />}
-              {activeTab === "settings" && <Settings />}
-              {activeTab === "history" && <History />}
+              {activeTab === "settings" && (
+                <Settings selectedSection={selectedSettingsSection} />
+              )}
+              {activeTab === "history" && (
+                <History
+                  selectedEventId={selectedEventId}
+                  onSelectEvent={setSelectedEventId}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
         </main>

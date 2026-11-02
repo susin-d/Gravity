@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   X,
   Clock,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -23,7 +24,13 @@ interface LimitEvent {
   detail?: string;
 }
 
-export default function AdapterHealth() {
+interface AdapterHealthProps {
+  selectedAdapter?: "claude" | "codex" | null;
+}
+
+export default function AdapterHealth({
+  selectedAdapter,
+}: AdapterHealthProps = {}) {
   const [health, setHealth] = useState<AdaptersHealthReport | null>(null);
   const [limitEvents, setLimitEvents] = useState<LimitEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -53,11 +60,24 @@ export default function AdapterHealth() {
   return (
     <div className="p-6 max-w-5xl space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-lg font-semibold text-white">Adapter Health</h2>
-        <p className="text-xs text-ink-low mt-0.5">
-          Real-time parser status and recorded limit telemetry for Claude Code and OpenAI Codex.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-white">Adapter Health</h2>
+          <p className="text-xs text-ink-low mt-0.5">
+            Local CLI probe for Claude Code and OpenAI Codex, plus recorded limit telemetry.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={loadData}
+          disabled={loading}
+          className="flex items-center gap-1.5"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <span>Refresh</span>
+        </Button>
       </div>
 
       {error && (
@@ -79,16 +99,18 @@ export default function AdapterHealth() {
         <AdapterCard
           title="Claude Code CLI Adapter"
           vendor="claude"
-          status={health?.claude || "ok"}
-          description="Parses stdout/stderr for token quota exhaustion, credit balance alerts, and exit codes."
+          status={health?.claude ?? null}
+          description="Parses CLI output for token quota exhaustion, credit balance alerts, and exit codes."
           loading={loading}
+          selected={selectedAdapter === "claude"}
         />
         <AdapterCard
           title="OpenAI Codex CLI Adapter"
           vendor="codex"
-          status={health?.codex || "ok"}
-          description="Monitors Codex requests per minute limits, insufficient_quota errors, and API rejections."
+          status={health?.codex ?? null}
+          description="Detects Codex request limits, insufficient_quota errors, and API rejections."
           loading={loading}
+          selected={selectedAdapter === "codex"}
         />
       </div>
 
@@ -147,24 +169,28 @@ function AdapterCard({
   status,
   description,
   loading,
+  selected,
 }: {
   title: string;
   vendor: string;
-  status: "ok" | "degraded";
+  status: "ok" | "degraded" | null;
   description: string;
   loading?: boolean;
+  selected?: boolean;
 }) {
   const isOk = status === "ok";
 
   return (
-    <Card className="p-5 space-y-3">
+    <Card className={`p-5 space-y-3 transition-all ${selected ? "border-white/40 shadow-glow bg-[#181818]" : ""}`}>
       <div className="flex items-center justify-between">
         <h4 className="font-semibold text-white text-sm">{title}</h4>
         {loading ? (
           <div className="skeleton h-5 w-20 rounded" />
+        ) : status === null ? (
+          <Badge variant="neutral">Unavailable</Badge>
         ) : (
           <Badge variant={isOk ? "success" : "destructive"}>
-            {isOk ? "Active (OK)" : "Degraded"}
+            {isOk ? "CLI detected" : "CLI missing"}
           </Badge>
         )}
       </div>

@@ -40,12 +40,12 @@ interface SwitchEvent {
 
 interface LimitEvent {
   id: string;
-  session_id?: string;
+  session_id: string;
   profile_id: string;
-  vendor: string;
-  line?: string;
-  exit_code?: number;
   detected_at: string;
+  source: string;
+  raw_signal: string;
+  detail?: string;
 }
 
 interface Session {
@@ -73,7 +73,15 @@ interface TimelineItem {
   raw: SwitchEvent | LimitEvent | Session;
 }
 
-export default function History() {
+interface HistoryProps {
+  selectedEventId?: string | null;
+  onSelectEvent?: (id: string) => void;
+}
+
+export default function History({
+  selectedEventId,
+  onSelectEvent,
+}: HistoryProps = {}) {
   const [switches, setSwitches] = useState<SwitchEvent[]>([]);
   const [limits, setLimits] = useState<LimitEvent[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -85,6 +93,7 @@ export default function History() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -174,15 +183,11 @@ export default function History() {
         id: `limit-${lm.id}`,
         type: "limit",
         timestamp: lm.detected_at,
-        title: `Rate limit detected (${lm.vendor})`,
-        subtitle: `Profile: ${pName}${
-          lm.exit_code !== undefined && lm.exit_code !== null
-            ? ` · Exit Code: ${lm.exit_code}`
-            : ""
-        }`,
+        title: `Rate limit detected (${p?.vendor ?? "unknown vendor"})`,
+        subtitle: `Profile: ${pName} · Source: ${lm.source}`,
         badgeVariant: "warning",
         badgeText: "Rate Limited",
-        detail: lm.line,
+        detail: lm.detail ?? lm.raw_signal,
         profileId: lm.profile_id,
         raw: lm,
       });
@@ -231,19 +236,31 @@ export default function History() {
     });
   }, [timeline, typeFilter, projectFilter, searchQuery]);
 
+  const selectedItemId = selectedEventId ? `switch-${selectedEventId}` : null;
+
+  useEffect(() => {
+    if (!selectedItemId) return;
+    document.getElementById(selectedItemId)?.scrollIntoView({ block: "center" });
+  }, [selectedItemId]);
+
   const handleExportJson = () => {
-    const dataStr =
-      "data:text/json;charset=utf-8," +
-      encodeURIComponent(JSON.stringify(filteredTimeline, null, 2));
-    const a = document.createElement("a");
-    a.setAttribute("href", dataStr);
-    a.setAttribute(
-      "download",
-      `gravity-audit-${new Date().toISOString().slice(0, 10)}.json`
-    );
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    try {
+      const blob = new Blob([JSON.stringify(filteredTimeline, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gravity-audit-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setExportNotice(`Exported ${filteredTimeline.length} events`);
+      window.setTimeout(() => setExportNotice(null), 3000);
+    } catch (err) {
+      setError(`Export failed: ${String(err)}`);
+    }
   };
 
   const clientBlocksCount = switches.filter(
@@ -293,6 +310,12 @@ export default function History() {
       {error && (
         <div className="bg-red-950/30 border border-red-800/60 rounded-xl p-3 text-xs text-red-300">
           {error}
+        </div>
+      )}
+
+      {exportNotice && (
+        <div className="bg-emerald-950/30 border border-emerald-800/60 rounded-xl p-3 text-xs text-emerald-300">
+          {exportNotice}
         </div>
       )}
 
@@ -386,34 +409,42 @@ export default function History() {
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filteredTimeline.map((item) => (
-            <motion.div
-              key={item.id}
-              whileHover={{ y: -1 }}
-              transition={{ duration: 0.1 }}
-              className="card p-4 space-y-2"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-sm text-white">
-                      {item.title}
-                    </span>
-                    <Badge variant={item.badgeVariant}>{item.badgeText}</Badge>
+          {filteredTimeline.map((item) => {
+            const isSelected = item.id === selectedItemId;
+            const switchItem = item.type === "switch" ? (item.raw as SwitchEvent) : null;
+            return (
+              <motion.div
+                key={item.id}
+                id={item.id}
+                onClick={() => switchItem && onSelectEvent?.(switchItem.id)}
+                whileHover={{ y: -1 }}
+                transition={{ duration: 0.1 }}
+                className={`card p-4 space-y-2 transition-all ${
+                  switchItem ? "cursor-pointer" : ""
+                } ${isSelected ? "border-white/40 shadow-glow bg-[#181818]" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm text-white">
+                        {item.title}
+                      </span>
+                      <Badge variant={item.badgeVariant}>{item.badgeText}</Badge>
+                    </div>
+                    <p className="text-xs text-ink-low">{item.subtitle}</p>
                   </div>
-                  <p className="text-xs text-ink-low">{item.subtitle}</p>
+                  <div className="text-right text-[11px] text-ink-low font-mono whitespace-nowrap flex-shrink-0">
+                    {new Date(item.timestamp).toLocaleString()}
+                  </div>
                 </div>
-                <div className="text-right text-[11px] text-ink-low font-mono whitespace-nowrap flex-shrink-0">
-                  {new Date(item.timestamp).toLocaleString()}
-                </div>
-              </div>
-              {item.detail && (
-                <div className="bg-glass-1 border border-edge-subtle rounded-lg p-2.5 text-xs font-mono text-ink-low break-all">
-                  {item.detail}
-                </div>
-              )}
-            </motion.div>
-          ))}
+                {item.detail && (
+                  <div className="bg-glass-1 border border-edge-subtle rounded-lg p-2.5 text-xs font-mono text-ink-low break-all">
+                    {item.detail}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </div>

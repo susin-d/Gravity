@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import type { SettingsSection as SettingsSectionId } from "../components/layout/panels/SettingsPanel";
 
 interface AppSettings {
   db_path: string;
@@ -9,13 +10,27 @@ interface AppSettings {
   };
 }
 
-export default function Settings() {
+interface SettingsProps {
+  selectedSection?: SettingsSectionId;
+}
+
+export default function Settings({ selectedSection }: SettingsProps = {}) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [wtAvailable, setWtAvailable] = useState<boolean | null>(null);
+  const [version, setVersion] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    invoke<AppSettings>("get_settings")
-      .then(setSettings)
+    Promise.all([
+      invoke<AppSettings>("get_settings"),
+      invoke<boolean>("check_terminal_available"),
+      invoke<string>("get_version"),
+    ])
+      .then(([s, wt, v]) => {
+        setSettings(s);
+        setWtAvailable(wt);
+        setVersion(v);
+      })
       .catch((e) => setError(String(e)));
   }, []);
 
@@ -24,7 +39,7 @@ export default function Settings() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-white">Settings</h2>
         <p className="text-xs text-ink-low mt-0.5">
-          Application data paths and feature flag status.
+          Application data paths, terminal fallback, and feature flag status.
         </p>
       </div>
 
@@ -36,14 +51,36 @@ export default function Settings() {
 
       {settings ? (
         <div className="space-y-4">
-          {/* Data paths */}
-          <SettingsSection title="Data">
+          <SettingsSection
+            title="Data"
+            selected={selectedSection === "database"}
+          >
             <InfoRow label="App data" value={settings.app_data_dir} />
             <InfoRow label="Database" value={settings.db_path} />
           </SettingsSection>
 
-          {/* Feature flags */}
-          <SettingsSection title="Feature Flags">
+          <SettingsSection
+            title="Terminal Fallback"
+            selected={selectedSection === "terminal"}
+          >
+            <div className="flex items-center justify-between py-1">
+              <div>
+                <p className="text-sm font-medium text-white">Windows Terminal</p>
+                <p className="text-xs text-ink-low mt-0.5">
+                  Sessions use the terminal selected per project. Projects set to
+                  Auto use Windows Terminal when available, otherwise PowerShell.
+                </p>
+              </div>
+              <span className={wtAvailable ? "badge-success" : "badge-neutral"}>
+                {wtAvailable === null ? "checking" : wtAvailable ? "detected" : "not found"}
+              </span>
+            </div>
+          </SettingsSection>
+
+          <SettingsSection
+            title="Feature Flags"
+            selected={selectedSection === "flags"}
+          >
             <div className="flex items-center justify-between py-1">
               <div>
                 <p className="text-sm font-medium text-white">Auto-switch</p>
@@ -56,6 +93,12 @@ export default function Settings() {
                 {settings.flags.auto_switch ? "enabled" : "disabled"}
               </span>
             </div>
+          </SettingsSection>
+
+          <SettingsSection title="About Gravity" selected={selectedSection === "about"}>
+            <InfoRow label="Version" value={version || "unknown"} />
+            <InfoRow label="Runtime" value="Tauri 2 · Win32 Job Objects · SQLite WAL" />
+            <InfoRow label="Isolation" value="Per-profile config dirs with sanitized environment" />
           </SettingsSection>
         </div>
       ) : (
@@ -73,9 +116,21 @@ export default function Settings() {
   );
 }
 
-function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+function SettingsSection({
+  title,
+  selected,
+  children,
+}: {
+  title: string;
+  selected?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="card p-4">
+    <div
+      className={`card p-4 transition-all ${
+        selected ? "border-white/40 shadow-glow bg-[#181818]" : ""
+      }`}
+    >
       <h3 className="section-heading mb-3">{title}</h3>
       <div className="space-y-3">{children}</div>
     </div>
