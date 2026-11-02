@@ -234,30 +234,32 @@ export default function Projects() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {/* Auto-Switch Policy Toggle */}
-                  <div className="text-right" title={autoSwitchTooltip}>
-                    <label className="text-[11px] text-gray-400 block mb-1">
-                      Auto-switch
-                    </label>
-                    <button
-                      type="button"
-                      disabled={autoSwitchDisabled}
-                      onClick={() => handleToggleAutoSwitch(proj)}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                        proj.auto_switch_enabled && !autoSwitchDisabled
-                          ? "bg-gravity-600"
-                          : "bg-gray-800"
-                      } ${autoSwitchDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
-                    >
-                      <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                  {/* Auto-Switch Policy Toggle (AC-10: Only rendered when master flag is true) */}
+                  {flags.auto_switch && (
+                    <div className="text-right" title={autoSwitchTooltip}>
+                      <label className="text-[11px] text-gray-400 block mb-1">
+                        Auto-switch
+                      </label>
+                      <button
+                        type="button"
+                        disabled={autoSwitchDisabled}
+                        onClick={() => handleToggleAutoSwitch(proj)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                           proj.auto_switch_enabled && !autoSwitchDisabled
-                            ? "translate-x-4"
-                            : "translate-x-1"
-                        }`}
-                      />
-                    </button>
-                  </div>
+                            ? "bg-gravity-600"
+                            : "bg-gray-800"
+                        } ${autoSwitchDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                            proj.auto_switch_enabled && !autoSwitchDisabled
+                              ? "translate-x-4"
+                              : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  )}
 
                   {/* Launch button */}
                   <button

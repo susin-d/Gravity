@@ -1,29 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Settings from "./pages/Settings";
 import Profiles from "./pages/Profiles";
 import Projects from "./pages/Projects";
 import AdapterHealth from "./pages/AdapterHealth";
+import AutoSwitchConsent from "./pages/AutoSwitchConsent";
 
-type Page = "projects" | "profiles" | "adapters" | "settings" | "history";
+type Page = "projects" | "profiles" | "adapters" | "autoswitch" | "settings" | "history";
+
+interface AppSettings {
+  flags: {
+    auto_switch: boolean;
+  };
+}
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>("projects");
   const [appVersion, setAppVersion] = useState<string>("");
+  const [autoSwitchFlag, setAutoSwitchFlag] = useState<boolean>(false);
 
-  const handleGetVersion = async () => {
-    try {
-      const version = await invoke<string>("get_version");
-      setAppVersion(version);
-    } catch (e) {
-      console.error("Failed to get version:", e);
-    }
-  };
+  useEffect(() => {
+    invoke<string>("get_version")
+      .then(setAppVersion)
+      .catch((e) => console.error("Failed to get version:", e));
 
-  // Fetch version on mount
-  if (!appVersion) {
-    handleGetVersion();
-  }
+    invoke<AppSettings>("get_settings")
+      .then((s) => setAutoSwitchFlag(s.flags.auto_switch))
+      .catch((e) => console.error("Failed to load settings:", e));
+  }, []);
 
   return (
     <div className="flex h-screen">
@@ -54,6 +58,13 @@ function App() {
             active={currentPage === "adapters"}
             onClick={() => setCurrentPage("adapters")}
           />
+          {autoSwitchFlag && (
+            <NavItem
+              label="Auto-Switch"
+              active={currentPage === "autoswitch"}
+              onClick={() => setCurrentPage("autoswitch")}
+            />
+          )}
           <NavItem
             label="Settings"
             active={currentPage === "settings"}
@@ -68,7 +79,7 @@ function App() {
         </div>
 
         <div className="p-3 border-t border-gray-800 text-xs text-gray-600">
-          M4 — Adapters & Fixtures
+          M6 — Auto-Switch Engine
         </div>
       </nav>
 
@@ -77,6 +88,7 @@ function App() {
         {currentPage === "projects" && <Projects />}
         {currentPage === "profiles" && <Profiles />}
         {currentPage === "adapters" && <AdapterHealth />}
+        {currentPage === "autoswitch" && <AutoSwitchConsent />}
         {currentPage === "settings" && <Settings />}
         {currentPage === "history" && (
           <Placeholder title="History" milestone="M7" />

@@ -16,8 +16,8 @@
 | **M3** | Honest Telemetry & Badges | ✅ Complete | v0.1 | Tri-state Usage (`official`/`estimated`/`unknown`), No fake UI, Reset Timers |
 | **M4** | Provider Adapters & Fixtures | ✅ Complete | v0.1 | Claude Code & Codex Output Parsers, <1s Rate Limit Detection, Fixture Suite |
 | **M5** | Limit Toast, Session Switch & Modal | ✅ Complete | v0.1 | Non-blocking Toast, MRU Fallback Engine, Client Boundary Consent Modal |
-| **M6** | Auto-Switch Policy Engine | 🔄 Next | v0.1 | `flags.toml` Gated Engine, Client Boundary Lockout, Auto-Switch Banners |
-| **M7** | Audit History & Final Polish | 📋 Planned | v0.1 | Filterable Timeline, Adapter Health Monitor, Long Path Support (`\\?\`) |
+| **M6** | Auto-Switch Policy Engine | ✅ Complete | v0.1 | `flags.toml` Gated Engine, Client Boundary Lockout, Auto-Switch Banners |
+| **M7** | Audit History & Final Polish | 🔄 Next | v0.1 | Filterable Timeline, Adapter Health Monitor, Long Path Support (`\\?\`) |
 | **v0.2+**| Extended Ecosystem (Backlog) | 💡 Backlog | v0.2+ | WSL Bridge, Headless CLI, Global Hotkeys, Custom Terminals |
 
 ---
@@ -118,17 +118,17 @@
 ---
 
 ### [M6] Auto-Switch Engine (Feature-Flagged)
-- [ ] **Feature Flag Gate:**
+- [x] **Feature Flag Gate:**
   - Hidden behind `flags.toml` (`auto_switch = true`).
   - If flag is absent or false, zero auto-switch UI elements or navigation paths are reachable.
-- [ ] **Session Boundary Engine:**
+- [x] **Session Boundary Engine:**
   - Automatically switch only at session/task boundaries when a rate limit halts execution.
-- [ ] **Hardened Client Lockout:**
+- [x] **Hardened Client Lockout:**
   - Hard failure if project is tagged `client` or target profile is tagged `client` (`outcome = blocked_client_auto`).
-- [ ] **Auto-Switch Banners (`AutoSwitchBanner.tsx`):**
+- [x] **Auto-Switch Banners (`AutoSwitchBanner.tsx`):**
   - Armed Banner: *"Auto-switch armed · Claude · Personal"* + 1-click **Disable**.
   - Post-switch Banner: *"Switched to Claude · Personal from Work at 14:02"* + **Switch back**.
-- [ ] **Consent & Allowlist Screen (`AutoSwitchConsent.tsx`):**
+- [x] **Consent & Allowlist Screen (`AutoSwitchConsent.tsx`):**
   - Granular profile selection; client profiles filtered out of allowlists.
 
 ---

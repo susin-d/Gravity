@@ -1,4 +1,5 @@
 pub mod adapters;
+pub mod auto_switch;
 pub mod commands;
 pub mod db;
 pub mod flags;
@@ -110,6 +111,7 @@ pub fn run() {
             commands::execute_profile_switch,
             commands::record_switch_cancellation,
             commands::list_switch_events,
+            commands::trigger_auto_switch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Gravity");
