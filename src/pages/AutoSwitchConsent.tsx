@@ -70,15 +70,15 @@ export default function AutoSwitchConsent() {
       transition={{ duration: 0.2 }}
       className="p-6 max-w-4xl space-y-6"
     >
-      <div className="flex items-center justify-between border-b border-border-subtle pb-4">
+      <div className="flex items-center justify-between border-b border-edge-subtle pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold tracking-tight text-text-primary">
+            <h2 className="text-xl font-bold tracking-tight text-white">
               Auto-Switch Policies & Consent
             </h2>
             <Badge variant="warning">M6 Guarded</Badge>
           </div>
-          <p className="text-xs text-text-tertiary mt-1">
+          <p className="text-xs text-ink-low mt-1">
             Automated profile switching on rate limit detection. Governed by flags.toml and client isolation barriers.
           </p>
         </div>
@@ -97,7 +97,7 @@ export default function AutoSwitchConsent() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Shield className="h-4 w-4 text-gravity-400" />
+            <Shield className="h-4 w-4 text-white" />
             <span>Master Capability Status</span>
           </CardTitle>
         </CardHeader>
@@ -105,15 +105,15 @@ export default function AutoSwitchConsent() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-text-primary">
+                <span className="text-sm font-medium text-white">
                   Automated Switch Engine:
                 </span>
                 <Badge variant={isAutoSwitchActive ? "success" : "neutral"}>
                   {isAutoSwitchActive ? "ARMED (flags.toml: true)" : "DISARMED (flags.toml: false)"}
                 </Badge>
               </div>
-              <p className="text-xs text-text-tertiary">
-                Requires explicit flag enablement in <code className="text-text-secondary bg-surface-3 px-1 py-0.5 rounded font-mono">flags.toml</code>.
+              <p className="text-xs text-ink-low">
+                Requires explicit flag enablement in <code className="text-ink-mid bg-glass-3 px-1 py-0.5 rounded font-mono">flags.toml</code>.
               </p>
             </div>
           </div>
@@ -121,21 +121,21 @@ export default function AutoSwitchConsent() {
       </Card>
 
       {/* Security Isolation Notice */}
-      <div className="bg-surface-2 border border-border-subtle rounded-xl p-4 space-y-3">
-        <div className="flex items-center gap-2 text-text-primary text-xs font-semibold">
+      <div className="bg-glass-2 border border-edge-subtle rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-2 text-white text-xs font-semibold">
           <Lock className="h-4 w-4 text-amber-400 flex-shrink-0" />
           <span>Security &amp; Client Data Isolation Rules</span>
         </div>
-        <ul className="text-xs text-text-secondary space-y-1.5 list-disc pl-5">
+        <ul className="text-xs text-ink-mid space-y-1.5 list-disc pl-5">
           <li>
-            <strong className="text-text-primary">Strict Client Exemption:</strong> Projects or profiles tagged as{" "}
+            <strong className="text-white">Strict Client Exemption:</strong> Projects or profiles tagged as{" "}
             <Badge variant="client" className="mx-1">CLIENT</Badge> are permanently blocked from auto-switching.
           </li>
           <li>
-            <strong className="text-text-primary">Vendor Matching:</strong> Automated fallback only switches within the same vendor ecosystem (Claude Code &rarr; Claude Code, Codex &rarr; Codex).
+            <strong className="text-white">Vendor Matching:</strong> Automated fallback only switches within the same vendor ecosystem (Claude Code &rarr; Claude Code, Codex &rarr; Codex).
           </li>
           <li>
-            <strong className="text-text-primary">Audit Log:</strong> Every automated switch writes an immutable event into SQLite with policy snapshot and timestamp.
+            <strong className="text-white">Audit Log:</strong> Every automated switch writes an immutable event into SQLite with policy snapshot and timestamp.
           </li>
         </ul>
       </div>
@@ -144,11 +144,11 @@ export default function AutoSwitchConsent() {
       <div className="space-y-3">
         <h3 className="section-heading">Auto-Switch Profile Allowlist</h3>
         {loading ? (
-          <div className="text-xs text-text-tertiary">Loading profile inventory...</div>
+          <div className="text-xs text-ink-low">Loading profile inventory...</div>
         ) : (
           <div className="card overflow-hidden">
             <table className="w-full text-left text-xs">
-              <thead className="bg-surface-1 text-text-tertiary uppercase text-[10px] tracking-wider">
+              <thead className="bg-glass-1 text-ink-low uppercase text-[10px] tracking-wider">
                 <tr>
                   <th className="p-3">Profile Label</th>
                   <th className="p-3">Vendor</th>
@@ -163,8 +163,8 @@ export default function AutoSwitchConsent() {
                   const isExcluded = excludedProfileIds.has(p.id);
 
                   return (
-                    <tr key={p.id} className="hover:bg-surface-3 transition-colors">
-                      <td className="p-3 font-medium text-text-primary">{p.label}</td>
+                    <tr key={p.id} className="hover:bg-glass-3 transition-colors">
+                      <td className="p-3 font-medium text-white">{p.label}</td>
                       <td className="p-3">
                         <Badge variant={p.vendor === "claude" ? "claude" : "codex"}>
                           {p.vendor}
@@ -180,7 +180,7 @@ export default function AutoSwitchConsent() {
                             <span>Hard Blocked (Client)</span>
                           </div>
                         ) : isExcluded ? (
-                          <div className="flex items-center gap-1.5 text-text-tertiary">
+                          <div className="flex items-center gap-1.5 text-ink-low">
                             <span>Manually Excluded</span>
                           </div>
                         ) : (
@@ -192,7 +192,7 @@ export default function AutoSwitchConsent() {
                       </td>
                       <td className="p-3 text-right">
                         {isClient ? (
-                          <span className="text-[11px] text-text-tertiary italic">
+                          <span className="text-[11px] text-ink-low italic">
                             Non-configurable
                           </span>
                         ) : (

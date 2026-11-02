@@ -3,17 +3,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-mono font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-gravity-400",
+  "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-mono font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-white/30",
   {
     variants: {
       variant: {
+        // Monochrome default
         default:
-          "border-transparent bg-gravity-600 text-white shadow",
+          "border-edge-DEFAULT bg-glass-3 text-white",
         secondary:
-          "border-border-subtle bg-surface-2 text-text-secondary",
+          "border-edge-subtle bg-glass-2 text-ink-mid",
+        // Semantic — kept saturated
         destructive:
           "border-red-800/80 bg-red-950/60 text-red-300",
-        outline: "text-text-primary border-border",
+        outline:
+          "text-white border-edge-DEFAULT",
         success:
           "border-emerald-800/80 bg-emerald-950/60 text-emerald-300",
         warning:
@@ -21,7 +24,8 @@ const badgeVariants = cva(
         info:
           "border-sky-800/80 bg-sky-950/60 text-sky-300",
         neutral:
-          "border-border bg-surface-2 text-text-tertiary",
+          "border-edge-subtle bg-glass-2 text-ink-mid",
+        // Vendor / tag
         claude:
           "border-orange-800/80 bg-orange-950/50 text-orange-300",
         codex:

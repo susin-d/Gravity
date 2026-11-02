@@ -54,8 +54,8 @@ export default function AdapterHealth() {
     <div className="p-6 max-w-5xl space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold text-text-primary">Adapter Health</h2>
-        <p className="text-xs text-text-tertiary mt-0.5">
+        <h2 className="text-lg font-semibold text-white">Adapter Health</h2>
+        <p className="text-xs text-ink-low mt-0.5">
           Real-time parser status and recorded limit telemetry for Claude Code and OpenAI Codex.
         </p>
       </div>
@@ -103,12 +103,12 @@ export default function AdapterHealth() {
           </div>
         ) : limitEvents.length === 0 ? (
           <div className="empty-state py-8">
-            <p className="text-text-tertiary text-xs">No rate limit events recorded yet.</p>
+            <p className="text-ink-low text-xs">No rate limit events recorded yet.</p>
           </div>
         ) : (
           <div className="card overflow-hidden">
             <table className="w-full text-left text-xs font-mono">
-              <thead className="bg-surface-1 text-text-tertiary uppercase text-[10px] tracking-wider">
+              <thead className="bg-glass-1 text-ink-low uppercase text-[10px] tracking-wider">
                 <tr>
                   <th className="p-3">Detected At</th>
                   <th className="p-3">Profile ID</th>
@@ -118,16 +118,16 @@ export default function AdapterHealth() {
               </thead>
               <tbody className="divide-y divide-border-subtle">
                 {limitEvents.map((evt) => (
-                  <tr key={evt.id} className="hover:bg-surface-3 transition-colors">
-                    <td className="p-3 text-text-tertiary flex items-center gap-1.5">
-                      <Clock className="h-3 w-3 text-text-tertiary" />
+                  <tr key={evt.id} className="hover:bg-glass-3 transition-colors">
+                    <td className="p-3 text-ink-low flex items-center gap-1.5">
+                      <Clock className="h-3 w-3 text-ink-low" />
                       {new Date(evt.detected_at).toLocaleTimeString()}
                     </td>
-                    <td className="p-3 text-text-secondary">{evt.profile_id.slice(0, 8)}…</td>
+                    <td className="p-3 text-ink-mid">{evt.profile_id.slice(0, 8)}…</td>
                     <td className="p-3">
                       <Badge variant="warning" className="uppercase text-[10px]">{evt.source}</Badge>
                     </td>
-                    <td className="p-3 text-text-secondary truncate max-w-xs" title={evt.raw_signal}>
+                    <td className="p-3 text-ink-mid truncate max-w-xs" title={evt.raw_signal}>
                       {evt.raw_signal}
                     </td>
                   </tr>
@@ -159,7 +159,7 @@ function AdapterCard({
   return (
     <Card className="p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-text-primary text-sm">{title}</h4>
+        <h4 className="font-semibold text-white text-sm">{title}</h4>
         {loading ? (
           <div className="skeleton h-5 w-20 rounded" />
         ) : (
@@ -168,9 +168,9 @@ function AdapterCard({
           </Badge>
         )}
       </div>
-      <p className="text-xs text-text-secondary leading-relaxed">{description}</p>
-      <div className="pt-2 border-t border-border-subtle text-[11px] text-text-tertiary font-mono">
-        Vendor ID: <span className="text-text-secondary">{vendor}</span>
+      <p className="text-xs text-ink-mid leading-relaxed">{description}</p>
+      <div className="pt-2 border-t border-edge-subtle text-[11px] text-ink-low font-mono">
+        Vendor ID: <span className="text-ink-mid">{vendor}</span>
       </div>
     </Card>
   );

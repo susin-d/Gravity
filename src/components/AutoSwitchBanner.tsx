@@ -30,33 +30,59 @@ export default function AutoSwitchBanner({
     return null;
   }
 
+  const isTriggered = !!lastSwitchedEvent;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="bg-surface-2 border border-gravity-600/50 rounded-xl p-3.5 mb-5 shadow-lg flex items-center justify-between"
+      className="rounded-xl p-3.5 mb-5 flex items-center justify-between border"
+      style={isTriggered ? {
+        background: "rgba(255,255,255,0.07)",
+        backdropFilter: "blur(40px)",
+        WebkitBackdropFilter: "blur(40px)",
+        borderColor: "rgba(255,255,255,0.18)",
+        boxShadow: "0 0 20px rgba(255,255,255,0.06)",
+      } : {
+        background: "rgba(255,255,255,0.04)",
+        backdropFilter: "blur(40px)",
+        WebkitBackdropFilter: "blur(40px)",
+        borderColor: "rgba(255,255,255,0.09)",
+      }}
     >
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-gravity-600/20 text-gravity-300 border border-gravity-600/30 flex-shrink-0">
-          <Zap className="h-4 w-4 animate-pulse" />
+        <div
+          className="p-2 rounded-lg border flex-shrink-0"
+          style={isTriggered ? {
+            background: "rgba(255,255,255,0.12)",
+            borderColor: "rgba(255,255,255,0.20)",
+            color: "#ffffff",
+            boxShadow: "0 0 12px rgba(255,255,255,0.15)",
+          } : {
+            background: "rgba(255,255,255,0.07)",
+            borderColor: "rgba(255,255,255,0.12)",
+            color: "rgba(255,255,255,0.70)",
+          }}
+        >
+          <Zap className="h-4 w-4 animate-glow-pulse" />
         </div>
         <div>
           {lastSwitchedEvent ? (
-            <p className="text-xs text-text-primary">
-              <strong className="font-semibold text-white">Auto-switched:</strong> Now using{" "}
-              <span className="text-gravity-300 font-bold">{lastSwitchedEvent.toProfileName}</span> (switched from{" "}
+            <p className="text-xs text-white">
+              <strong className="font-semibold">Auto-switched:</strong> Now using{" "}
+              <span className="text-white font-bold">{lastSwitchedEvent.toProfileName}</span> (switched from{" "}
               {lastSwitchedEvent.fromProfileName} at{" "}
               {new Date(lastSwitchedEvent.switchedAt).toLocaleTimeString()}).
             </p>
           ) : (
-            <p className="text-xs text-text-primary">
-              <strong className="font-semibold text-white">Auto-switch armed:</strong> Will switch to{" "}
-              <span className="text-gravity-300 font-bold">{armedTargetProfileName || "MRU non-client profile"}</span>{" "}
+            <p className="text-xs text-white">
+              <strong className="font-semibold">Auto-switch armed:</strong> Will switch to{" "}
+              <span className="font-bold">{armedTargetProfileName || "MRU non-client profile"}</span>{" "}
               if a rate limit is reached.
             </p>
           )}
-          <p className="text-[10px] text-text-tertiary mt-0.5">
+          <p className="text-[10px] text-ink-low mt-0.5">
             Client accounts are strictly protected from automated switching.
           </p>
         </div>

@@ -244,8 +244,8 @@ export default function Profiles() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-text-primary">Profiles</h2>
-          <p className="text-xs text-text-tertiary mt-0.5">
+          <h2 className="text-lg font-semibold text-white">Profiles</h2>
+          <p className="text-xs text-ink-low mt-0.5">
             Isolated environments with separate config directories and Job Object boundaries.
           </p>
         </div>
@@ -261,10 +261,10 @@ export default function Profiles() {
 
       {/* WT warning */}
       {!wtAvailable && (
-        <div className="flex items-center gap-2.5 bg-surface-1 border border-amber-800/40 text-amber-300 text-xs rounded-xl p-3">
+        <div className="flex items-center gap-2.5 bg-glass-1 border border-amber-800/40 text-amber-300 text-xs rounded-xl p-3">
           <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
           <span>
-            <code className="font-mono text-text-primary">wt.exe</code> was not detected — sessions will fall back to standalone PowerShell.
+            <code className="font-mono text-white">wt.exe</code> was not detected — sessions will fall back to standalone PowerShell.
           </span>
         </div>
       )}
@@ -297,8 +297,8 @@ export default function Profiles() {
         </div>
       ) : profiles.length === 0 ? (
         <div className="empty-state">
-          <p className="text-text-secondary text-sm font-medium">No profiles created yet</p>
-          <p className="text-text-tertiary text-xs mt-1">
+          <p className="text-ink-mid text-sm font-medium">No profiles created yet</p>
+          <p className="text-ink-low text-xs mt-1">
             Create an isolated Claude Code or Codex profile to get started.
           </p>
           <Button
@@ -326,14 +326,14 @@ export default function Profiles() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-text-primary text-sm">{p.label}</span>
+                        <span className="font-semibold text-white text-sm">{p.label}</span>
                         <Badge variant={p.tag}>{p.tag}</Badge>
                         <Badge variant={p.vendor}>
                           {p.vendor === "claude" ? "Claude" : "Codex"}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
-                        <Folder className="h-3 w-3 text-text-tertiary flex-shrink-0" />
+                      <div className="flex items-center gap-1.5 text-xs text-ink-low">
+                        <Folder className="h-3 w-3 text-ink-low flex-shrink-0" />
                         <span className="font-mono truncate max-w-[210px]" title={p.config_dir}>
                           {p.config_dir}
                         </span>
@@ -343,7 +343,7 @@ export default function Profiles() {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteProfile(p.id, p.label)}
-                      className="h-7 w-7 text-text-tertiary hover:text-red-400"
+                      className="h-7 w-7 text-ink-low hover:text-red-400"
                       title="Delete profile"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -361,8 +361,8 @@ export default function Profiles() {
                 </div>
 
                 {/* Card footer */}
-                <div className="pt-3 border-t border-border-subtle flex items-center justify-between">
-                  <span className="text-[11px] text-text-tertiary font-mono">
+                <div className="pt-3 border-t border-edge-subtle flex items-center justify-between">
+                  <span className="text-[11px] text-ink-low font-mono">
                     ID: {p.id.slice(0, 8)}…
                   </span>
                   <Button
@@ -372,7 +372,7 @@ export default function Profiles() {
                     size="sm"
                     className="flex items-center gap-1.5"
                   >
-                    <Terminal className="h-3.5 w-3.5 text-text-secondary" />
+                    <Terminal className="h-3.5 w-3.5 text-ink-mid" />
                     <span>{launchingId === p.id ? "Launching…" : "Launch Terminal"}</span>
                   </Button>
                 </div>
@@ -388,7 +388,7 @@ export default function Profiles() {
           <h3 className="section-heading mb-3">Recent Sessions (Job Objects)</h3>
           <div className="card overflow-hidden">
             <table className="w-full text-left text-xs">
-              <thead className="bg-surface-1 text-text-tertiary uppercase text-[10px] tracking-wider">
+              <thead className="bg-glass-1 text-ink-low uppercase text-[10px] tracking-wider">
                 <tr>
                   <th className="p-3">Session ID</th>
                   <th className="p-3">PID</th>
@@ -398,10 +398,10 @@ export default function Profiles() {
               </thead>
               <tbody className="divide-y divide-border-subtle font-mono">
                 {sessions.slice(0, 5).map((s) => (
-                  <tr key={s.id} className="hover:bg-surface-3 transition-colors">
-                    <td className="p-3 text-text-tertiary">{s.id.slice(0, 12)}…</td>
-                    <td className="p-3 text-text-secondary">{s.pid ?? "—"}</td>
-                    <td className="p-3 text-text-tertiary">
+                  <tr key={s.id} className="hover:bg-glass-3 transition-colors">
+                    <td className="p-3 text-ink-low">{s.id.slice(0, 12)}…</td>
+                    <td className="p-3 text-ink-mid">{s.pid ?? "—"}</td>
+                    <td className="p-3 text-ink-low">
                       {new Date(s.started_at).toLocaleTimeString()}
                     </td>
                     <td className="p-3">
@@ -492,12 +492,12 @@ export default function Profiles() {
                 onChange={(e) => setSecret(e.target.value)}
                 className="input input-mono"
               />
-              <p className="text-[11px] text-text-tertiary mt-1">
+              <p className="text-[11px] text-ink-low mt-1">
                 Leave blank if you prefer logging in via CLI browser OAuth.
               </p>
             </div>
 
-            <DialogFooter className="pt-3 border-t border-border-subtle">
+            <DialogFooter className="pt-3 border-t border-edge-subtle">
               <Button
                 type="button"
                 variant="secondary"

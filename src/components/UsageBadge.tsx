@@ -26,10 +26,13 @@ interface UsageBadgeProps {
 export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadgeProps) {
   if (!reading) {
     return (
-      <div className="bg-surface-1 border border-border-subtle rounded-lg p-3 text-xs flex items-center justify-between">
+      <div
+        className="border border-edge-subtle rounded-lg p-3 text-xs flex items-center justify-between backdrop-blur-2xl"
+        style={{ background: "rgba(255,255,255,0.04)" }}
+      >
         <div className="flex items-center gap-2">
           <Badge variant="neutral">Unknown</Badge>
-          <span className="text-text-tertiary italic">No telemetry recorded</span>
+          <span className="text-ink-low italic">No telemetry recorded</span>
         </div>
         {onRefresh && (
           <Button
@@ -37,7 +40,7 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
             size="sm"
             onClick={onRefresh}
             disabled={refreshing}
-            className="h-6 px-2 text-[11px] text-text-tertiary hover:text-text-primary"
+            className="h-6 px-2 text-[11px] text-ink-low hover:text-white"
           >
             {refreshing ? "Checking…" : "Check"}
           </Button>
@@ -50,27 +53,35 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
 
   // Source badges
   const badgeVariant = {
-    official: "success" as const,
-    estimated: "warning" as const,
-    unknown: "neutral" as const,
+    official:  "success"  as const,
+    estimated: "warning"  as const,
+    unknown:   "neutral"  as const,
   }[source];
 
   const sourceLabel = {
-    official: "Official",
+    official:  "Official",
     estimated: "Estimated",
-    unknown: "Unknown",
+    unknown:   "Unknown",
   }[source];
 
   // Calculate percentage only if both are non-null and limit > 0
-  const hasValues = typeof value_used === "number" && typeof value_limit === "number" && value_limit > 0;
-  const percent = hasValues ? Math.min(100, Math.round(((value_used as number) / (value_limit as number)) * 100)) : null;
+  const hasValues =
+    typeof value_used === "number" &&
+    typeof value_limit === "number" &&
+    value_limit > 0;
+  const percent = hasValues
+    ? Math.min(100, Math.round(((value_used as number) / (value_limit as number)) * 100))
+    : null;
 
   return (
-    <div className="bg-surface-1 border border-border-subtle rounded-lg p-3 space-y-2">
+    <div
+      className="border border-edge-subtle rounded-lg p-3 space-y-2 backdrop-blur-2xl"
+      style={{ background: "rgba(255,255,255,0.04)" }}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Badge variant={badgeVariant}>{sourceLabel}</Badge>
-          {win && <span className="text-[10px] text-text-tertiary capitalize">{win}</span>}
+          {win && <span className="text-[10px] text-ink-low capitalize">{win}</span>}
         </div>
 
         {onRefresh && (
@@ -79,7 +90,7 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
             size="sm"
             onClick={onRefresh}
             disabled={refreshing}
-            className="h-6 px-2 text-[11px] text-text-tertiary hover:text-text-primary flex items-center gap-1"
+            className="h-6 px-2 text-[11px] text-ink-low hover:text-white flex items-center gap-1"
             title="Refresh usage telemetry"
           >
             <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
@@ -92,11 +103,11 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
       {source === "unknown" ? (
         // PRIME DIRECTIVE #3 & AC-08: No fake progress bars, no fake numbers, no 0%
         <div className="py-1">
-          <div className="flex items-center gap-1.5 text-xs text-text-secondary font-medium">
-            <AlertCircle className="h-3.5 w-3.5 text-text-tertiary" />
+          <div className="flex items-center gap-1.5 text-xs text-ink-mid font-medium">
+            <AlertCircle className="h-3.5 w-3.5 text-ink-low" />
             <span>Check manually</span>
           </div>
-          <p className="text-[11px] text-text-tertiary mt-0.5">
+          <p className="text-[11px] text-ink-low mt-0.5">
             {reading.detail || "Provider usage cannot be verified automatically."}
           </p>
         </div>
@@ -104,11 +115,11 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
         // Official or Estimated values
         <div>
           <div className="flex items-baseline justify-between text-xs mb-1.5 font-mono">
-            <span className="text-text-secondary">
+            <span className="text-ink-mid">
               {formatValue(value_used)} / {formatValue(value_limit)} {unit || "units"}
             </span>
             {percent !== null && (
-              <span className={`font-semibold ${percent > 85 ? "text-red-400" : "text-text-primary"}`}>
+              <span className={`font-semibold ${percent > 85 ? "text-red-400" : "text-white"}`}>
                 {percent}%
               </span>
             )}
@@ -116,7 +127,10 @@ export default function UsageBadge({ reading, onRefresh, refreshing }: UsageBadg
 
           {/* Progress bar only rendered when exact numbers exist and source != unknown */}
           {percent !== null && (
-            <div className="w-full bg-surface-3 rounded-full h-1.5 overflow-hidden">
+            <div
+              className="w-full rounded-full h-1.5 overflow-hidden"
+              style={{ background: "rgba(255,255,255,0.08)" }}
+            >
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${percent}%` }}
@@ -155,8 +169,8 @@ function ResetTimer({ resetAt }: { resetAt: string }) {
       }
 
       const hours = Math.floor(diff / (1000 * 60 * 60));
-      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+      const mins  = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs  = Math.floor((diff % (1000 * 60)) / 1000);
 
       if (hours > 0) {
         setRemainingText(`Resets in ${hours}h ${mins}m`);
@@ -173,7 +187,7 @@ function ResetTimer({ resetAt }: { resetAt: string }) {
   }, [resetAt]);
 
   return (
-    <div className="text-[11px] text-text-tertiary flex items-center gap-1.5 font-mono pt-1.5 border-t border-border-subtle">
+    <div className="text-[11px] text-ink-low flex items-center gap-1.5 font-mono pt-1.5 border-t border-edge-subtle">
       <Clock className="h-3 w-3" />
       <span>{remainingText}</span>
     </div>

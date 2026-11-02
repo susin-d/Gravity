@@ -34,34 +34,40 @@ export default function LimitToast({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      initial={{ opacity: 0, y: 20, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 20, scale: 0.95 }}
+      exit={{ opacity: 0, y: 20, scale: 0.96 }}
       transition={{ duration: 0.2 }}
-      className="fixed bottom-6 right-6 max-w-md w-full bg-surface-2 border border-amber-600/80 rounded-xl shadow-2xl p-4 z-50"
+      className="fixed bottom-6 right-6 max-w-md w-full rounded-xl p-4 z-50 border border-amber-600/50"
+      style={{
+        background: "rgba(10, 10, 10, 0.92)",
+        backdropFilter: "blur(40px)",
+        WebkitBackdropFilter: "blur(40px)",
+        boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 16px 48px rgba(0,0,0,0.85)",
+      }}
     >
       <div className="flex items-start gap-3">
-        <div className="p-2 rounded-lg bg-amber-950/60 text-amber-400 border border-amber-800/80 flex-shrink-0">
+        <div className="p-2 rounded-lg bg-amber-950/60 text-amber-400 border border-amber-800/60 flex-shrink-0">
           <AlertTriangle className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-text-primary">
+            <h4 className="text-sm font-semibold text-white">
               Rate Limit Reached
             </h4>
             <Badge variant="warning">{fromProfile.vendor}</Badge>
           </div>
 
-          <p className="text-xs text-text-secondary mt-1">
+          <p className="text-xs text-ink-mid mt-1">
             <span className="font-medium text-amber-300">{fromProfile.label}</span> reached its quota limit.
           </p>
 
           {suggestedProfile ? (
-            <p className="text-xs text-text-tertiary mt-0.5">
-              Continue in <span className="font-semibold text-text-primary">{suggestedProfile.label}</span>?
+            <p className="text-xs text-ink-low mt-0.5">
+              Continue in <span className="font-semibold text-white">{suggestedProfile.label}</span>?
             </p>
           ) : (
-            <p className="text-xs text-text-tertiary mt-0.5 italic">
+            <p className="text-xs text-ink-low mt-0.5 italic">
               No eligible fallback profile found — Check manually.
             </p>
           )}
@@ -72,7 +78,7 @@ export default function LimitToast({
               <button
                 type="button"
                 onClick={() => setShowDetails(!showDetails)}
-                className="text-[11px] text-text-tertiary hover:text-text-secondary flex items-center gap-1 transition-colors"
+                className="text-[11px] text-ink-low hover:text-ink-mid flex items-center gap-1 transition-colors"
               >
                 <span>{showDetails ? "Hide raw limit details" : "View raw limit details"}</span>
                 {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -83,7 +89,8 @@ export default function LimitToast({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="mt-1.5 p-2 bg-surface-1 rounded-lg text-[10px] font-mono text-text-tertiary whitespace-pre-wrap break-all border border-border-subtle"
+                    className="mt-1.5 p-2 rounded-lg text-[10px] font-mono text-ink-low whitespace-pre-wrap break-all border border-edge-subtle"
+                    style={{ background: "rgba(255,255,255,0.04)" }}
                   >
                     {rawSignal}
                   </motion.pre>
@@ -93,13 +100,8 @@ export default function LimitToast({
           )}
 
           {/* Action buttons */}
-          <div className="mt-3.5 flex items-center justify-end gap-2 pt-2.5 border-t border-border-subtle">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={onStay}
-            >
+          <div className="mt-3.5 flex items-center justify-end gap-2 pt-2.5 border-t border-edge-subtle">
+            <Button type="button" variant="secondary" size="sm" onClick={onStay}>
               Stay
             </Button>
 
@@ -114,12 +116,7 @@ export default function LimitToast({
                 Continue in {suggestedProfile.label}
               </Button>
             ) : (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={onManualSelect}
-              >
+              <Button type="button" variant="secondary" size="sm" onClick={onManualSelect}>
                 Check manually
               </Button>
             )}
