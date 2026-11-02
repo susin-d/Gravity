@@ -1,6 +1,8 @@
 pub mod commands;
 pub mod db;
 pub mod flags;
+pub mod process;
+pub mod profiles;
 pub mod single_instance;
 
 use std::path::PathBuf;
@@ -12,12 +14,14 @@ use tracing_subscriber::EnvFilter;
 
 use db::Db;
 use flags::FeatureFlags;
+use process::ProcessManager;
 
 /// Shared application state accessible from Tauri commands.
 pub struct AppState {
     pub db: Db,
     pub flags: FeatureFlags,
     pub app_data_dir: PathBuf,
+    pub process_mgr: ProcessManager,
 }
 
 pub fn run() {
@@ -64,6 +68,7 @@ pub fn run() {
                             db,
                             flags: FeatureFlags::load(&app_data),
                             app_data_dir: app_data,
+                            process_mgr: ProcessManager::new(),
                         });
                         handle.manage(state);
                         info!("Database initialized and state registered");
@@ -79,7 +84,13 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_version,
-            commands::get_settings
+            commands::get_settings,
+            commands::create_profile,
+            commands::list_profiles,
+            commands::delete_profile,
+            commands::spawn_session,
+            commands::list_sessions,
+            commands::check_terminal_available,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Gravity");

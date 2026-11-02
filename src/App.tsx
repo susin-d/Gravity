@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Settings from "./pages/Settings";
+import Profiles from "./pages/Profiles";
 
 type Page = "settings" | "profiles" | "projects" | "history";
 
@@ -45,7 +46,6 @@ function App() {
             label="Profiles"
             active={currentPage === "profiles"}
             onClick={() => setCurrentPage("profiles")}
-            disabled
           />
           <NavItem
             label="Projects"
@@ -69,9 +69,7 @@ function App() {
       {/* Main content */}
       <main className="flex-1 overflow-auto">
         {currentPage === "settings" && <Settings />}
-        {currentPage === "profiles" && (
-          <Placeholder title="Profiles" milestone="M1" />
-        )}
+        {currentPage === "profiles" && <Profiles />}
         {currentPage === "projects" && (
           <Placeholder title="Projects" milestone="M2" />
         )}
