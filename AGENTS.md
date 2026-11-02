@@ -32,6 +32,9 @@ When working on this codebase:
 7. **Always Commit and Push Changes:**
    - Every completed logical unit of work, milestone deliverable, or documentation update MUST be committed with a clean semantic message and pushed immediately to the remote (`git push origin <branch>` / `git push origin master`).
    - Never leave unpushed commits or uncommitted working tree changes when ending a turn.
+8. **Never ship slop code:**
+   - Every line in the diff must be required by the task, understood by the author, and useful to the next reader.
+   - Follow the anti-slop rules in Section 7 before every commit.
 
 ---
 
@@ -153,6 +156,12 @@ Run these from PowerShell:
 cd c:\project\Gravity\src-tauri
 cargo check
 
+# Rust formatting (must be clean)
+cargo fmt --check
+
+# Rust lints (no new warnings; fix warnings in files you touch)
+cargo clippy --all-targets
+
 # Run unit tests
 cargo test -- --nocapture
 
@@ -191,3 +200,59 @@ pnpm tauri dev
      git branch -d feat/<name>
      git push origin master
      ```
+
+---
+
+## 7. Code Quality: Anti-Slop Rules
+
+> Slop is code that exists to look productive instead of doing work. The diff is a cost, not an output. Every line must be required by the task, understood by the author, and readable by the next agent.
+
+### 7.1 Quantity discipline
+
+1. **Delete before you add.** Prefer the change with fewer lines. If a fix can remove a helper, flag, or file, do that instead of layering a new one on top.
+2. **No speculative abstraction.** No traits, generics, factories, config keys, or extension points for a single caller. Add the abstraction when the second real use case arrives.
+3. **No duplicate implementations.** Search the codebase first (`db.rs`, `profiles.rs`, `process.rs`, `src/components/`). Extend the existing helper instead of copying it.
+4. **No dead or half-finished code.** No commented-out blocks, unused exports/imports/dependencies, `todo!()`, placeholder commands, "coming soon" wiring, or scaffolding that only compiles. If it does not run end-to-end, it does not merge.
+5. **One responsibility per file.** Do not create a module or component for a single trivial function; put it where its caller lives.
+6. **Targeted edits only.** Never reformat, reorder, or rewrite a file to change a few lines. Keep diffs small enough to review hunk by hunk.
+7. **No generated noise.** No AI attribution, changelog narration ("updated to...", "as requested"), decorative separators, or emoji in code, comments, commits, or docs.
+
+### 7.2 Comments
+
+- Comments explain **why**, never **what**. If the code needs a comment to describe what it does, rename the code instead.
+- Banned: banner/section separators, per-line narration, and doc comments that restate the signature.
+- Allowed: `unsafe` justification (required), vendor quirks and workarounds with a link, non-obvious invariants, migration and version constraints.
+- Delete a stale comment in the same commit that invalidates it.
+
+### 7.3 Trust boundaries and error handling
+
+- Validate once at the boundary (IPC command, adapter parser, DB read), then pass typed values inward. Do not re-validate in every layer.
+- No defensive `try/catch`, `if let Some`, or `Option` gymnastics on internal paths that cannot fail.
+- Never swallow failures that matter (process spawn, job object assignment, SQLite writes, keyring, switch audit). Use `?` and a typed error.
+- `unwrap()` / `expect()` only for proven invariants (static regex, test fixtures, sealed handles). Never on user input, paths, env vars, or CLI output.
+- Never fake success. An unimplemented capability returns `Err` or `unknown` and surfaces it — no mock data on production paths.
+
+### 7.4 Types
+
+- No `any`, `as unknown as`, `!` non-null assertions, `@ts-ignore`, or blanket `#[allow(...)]` to silence a real error. Fix the type or the model.
+- Model state as a discriminated union or enum (`official | estimated | unknown`), never as parallel booleans such as `isLoading` + `hasData` + `isError`.
+- Prefer exhaustive `match` / `switch`; no catch-all default that hides new variants.
+
+### 7.5 UI
+
+- No fabricated data of any kind: no fake percentages, session counts, reset timers, or seed/sample rows.
+- No dead controls. Flag-gated features are **absent**, not disabled stubs (Prime Directive 4).
+- Reuse existing components (`UsageBadge`, `LimitToast`, etc.) instead of forking one-off variants.
+- Every new component and state needs a reachable user path. Delete components nothing renders.
+
+### 7.6 Pre-commit self-review gate
+
+Walk the diff hunk by hunk before staging and answer:
+
+1. Would a reviewer ask "why is this here?" If yes, delete it or justify it in one line.
+2. Does every new function, file, comment, dependency, and flag have a caller today?
+3. Did I change behavior the task did not ask for? Revert it.
+4. Are all checks in Section 5 green?
+
+Report `git diff --stat` in milestone summaries. Unexplained growth in lines or files gets reverted, not defended.
+
