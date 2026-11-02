@@ -6,6 +6,7 @@ pub mod process;
 pub mod profiles;
 pub mod projects;
 pub mod single_instance;
+pub mod switching;
 pub mod usage;
 
 use std::path::PathBuf;
@@ -105,6 +106,10 @@ pub fn run() {
             commands::check_adapters_health,
             commands::detect_line_limit,
             commands::list_limit_events,
+            commands::suggest_fallback_profile,
+            commands::execute_profile_switch,
+            commands::record_switch_cancellation,
+            commands::list_switch_events,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Gravity");

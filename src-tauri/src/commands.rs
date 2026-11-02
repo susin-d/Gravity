@@ -11,6 +11,7 @@ use crate::flags::FeatureFlags;
 use crate::process::{self, Session, SpawnOptions};
 use crate::profiles::{self, CreateProfileInput, Profile};
 use crate::projects::{self, CreateProjectInput, Project, UpdateProjectInput};
+use crate::switching::{self, SwitchEvent, SwitchExecutionResult};
 use crate::usage::{self, RecordUsageInput, UsageReading};
 use crate::AppState;
 
@@ -208,6 +209,81 @@ pub async fn list_limit_events(
     limit: Option<i64>,
 ) -> Result<Vec<LimitEvent>, String> {
     adapters::list_limit_events(state.db.pool(), limit.unwrap_or(50))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ==========================================
+// Profile Switching Engine (M5)
+// ==========================================
+
+/// Tauri command: suggest MRU non-client fallback profile for the same vendor.
+#[tauri::command]
+pub async fn suggest_fallback_profile(
+    state: State<'_, Arc<AppState>>,
+    from_profile_id: String,
+) -> Result<Option<Profile>, String> {
+    switching::suggest_switch(state.db.pool(), &from_profile_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Tauri command: execute a profile switch.
+#[tauri::command]
+pub async fn execute_profile_switch(
+    state: State<'_, Arc<AppState>>,
+    session_id: Option<String>,
+    from_profile_id: String,
+    to_profile_id: String,
+    project_id: Option<String>,
+    reason: String,
+    client_confirmed: bool,
+) -> Result<SwitchExecutionResult, String> {
+    switching::execute_switch(
+        state.db.pool(),
+        &state.process_mgr,
+        session_id.as_deref(),
+        &from_profile_id,
+        &to_profile_id,
+        project_id.as_deref(),
+        &reason,
+        client_confirmed,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Tauri command: record switch cancellation (AC-07, AC-11).
+#[tauri::command]
+pub async fn record_switch_cancellation(
+    state: State<'_, Arc<AppState>>,
+    session_id: Option<String>,
+    from_profile_id: String,
+    to_profile_id: String,
+    project_id: Option<String>,
+    reason: String,
+    detail: String,
+) -> Result<SwitchEvent, String> {
+    switching::record_cancellation(
+        state.db.pool(),
+        session_id.as_deref(),
+        &from_profile_id,
+        &to_profile_id,
+        project_id.as_deref(),
+        &reason,
+        &detail,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Tauri command: list recorded switch events.
+#[tauri::command]
+pub async fn list_switch_events(
+    state: State<'_, Arc<AppState>>,
+    limit: Option<i64>,
+) -> Result<Vec<SwitchEvent>, String> {
+    switching::list_switch_events(state.db.pool(), limit.unwrap_or(50))
         .await
         .map_err(|e| e.to_string())
 }

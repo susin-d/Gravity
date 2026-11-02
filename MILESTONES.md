@@ -1,7 +1,7 @@
 # Gravity — Milestones, Deliverables & Feature Roadmap
 
 > **Project:** Gravity  
-> **Status:** Active Implementation (M0, M1, M2, M3, M4 Complete)  
+> **Status:** Active Implementation (M0, M1, M2, M3, M4, M5 Complete)  
 > **Target OS:** Windows 10/11 (Native Win32 + Tauri 2)
 
 ---
@@ -15,8 +15,8 @@
 | **M2** | Project Registry & Tagging | ✅ Complete | v0.1 | Directory Registry, `personal` / `work` / `client` Tags, Policy Storage |
 | **M3** | Honest Telemetry & Badges | ✅ Complete | v0.1 | Tri-state Usage (`official`/`estimated`/`unknown`), No fake UI, Reset Timers |
 | **M4** | Provider Adapters & Fixtures | ✅ Complete | v0.1 | Claude Code & Codex Output Parsers, <1s Rate Limit Detection, Fixture Suite |
-| **M5** | Limit Toast, Session Switch & Modal | 🔄 Next | v0.1 | Non-blocking Toast, MRU Fallback Engine, Client Boundary Consent Modal |
-| **M6** | Auto-Switch Policy Engine | 📋 Planned | v0.1 | `flags.toml` Gated Engine, Client Boundary Lockout, Auto-Switch Banners |
+| **M5** | Limit Toast, Session Switch & Modal | ✅ Complete | v0.1 | Non-blocking Toast, MRU Fallback Engine, Client Boundary Consent Modal |
+| **M6** | Auto-Switch Policy Engine | 🔄 Next | v0.1 | `flags.toml` Gated Engine, Client Boundary Lockout, Auto-Switch Banners |
 | **M7** | Audit History & Final Polish | 📋 Planned | v0.1 | Filterable Timeline, Adapter Health Monitor, Long Path Support (`\\?\`) |
 | **v0.2+**| Extended Ecosystem (Backlog) | 💡 Backlog | v0.2+ | WSL Bridge, Headless CLI, Global Hotkeys, Custom Terminals |
 
@@ -99,19 +99,21 @@
 ---
 
 ### [M5] Limit Toast, Session Switch & Client Confirmation Modal
-- [ ] **Non-Blocking Rate Limit Toast (`LimitToast.tsx`):**
+- [x] **Non-Blocking Rate Limit Toast (`LimitToast.tsx`):**
   - Surface non-modal notification when rate limit is detected:  
     *"Claude · Work reached its limit. Continue in Claude · Personal?"*
   - Actions: `[Continue]` (default focus), `[Stay]`, `[Details]`.
-- [ ] **MRU Fallback Recommendation Engine:**
-  - Select Most Recently Used (MRU) non-client profile under the same vendor.
-  - If no eligible profile exists, surface *"No eligible profile — Check manually"*.
-- [ ] **Client Boundary Modal (`ClientBoundaryModal.tsx`):**
+- [x] **MRU Fallback Recommendation Engine (`switching.rs`):**
+  - Selects Most Recently Used (MRU) non-client profile under the same vendor.
+  - Returns `None` if no eligible profile exists $\to$ surfaces *"No eligible profile — Check manually"*.
+- [x] **Client Boundary Modal (`ClientBoundaryModal.tsx`):**
   - Modal displayed whenever a manual switch attempts to enter or exit a `client` profile.
-  - Default button focus is strictly **Cancel**.
+  - Default button focus is strictly **Cancel** (AC-07).
   - Choices are never remembered; every client boundary switch requires explicit interaction.
-- [ ] **Audit Trail (`switch_events`):**
+- [x] **Audit Trail (`switch_events`):**
   - Record every switch attempt with reason (`limit`, `manual`) and outcome (`completed`, `cancelled`, `confirmed_client_boundary`).
+  - Guarantees AC-11: exactly one row per switch attempt.
+  - Guarantees AC-05: new session spawned while original session row in `sessions` table is untouched.
 
 ---
 
