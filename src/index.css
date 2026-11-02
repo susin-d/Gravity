@@ -22,7 +22,9 @@
   }
 
   body {
-    @apply bg-surface-0 text-text-primary font-sans;
+    background-color: #09090b;
+    color: #f4f4f5;
+    font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
     font-size: 0.875rem;
     line-height: 1.5;
     margin: 0;
