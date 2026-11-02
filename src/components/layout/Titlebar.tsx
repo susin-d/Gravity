@@ -56,13 +56,25 @@ export default function Titlebar({
       if (action === "minimize") await appWindow.minimize();
       if (action === "maximize") await appWindow.toggleMaximize();
       if (action === "close") await appWindow.close();
-    } catch {
-      // In dev browser preview, silent fallback
+    } catch (error) {
+      console.error(`Failed to ${action} Gravity window`, error);
+    }
+  };
+
+  const handleTitlebarMouseDown = async (event: React.MouseEvent<HTMLElement>) => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().startDragging();
+    } catch (error) {
+      console.error("Failed to drag Gravity window", error);
     }
   };
 
   return (
     <header
+      onMouseDown={handleTitlebarMouseDown}
       className="relative flex h-10 w-full select-none items-center justify-between border-b border-edge-subtle bg-[#0a0a0a] text-xs text-ink-mid z-40"
       style={{
         background: "rgba(10, 10, 10, 0.95)",
@@ -139,17 +151,6 @@ export default function Titlebar({
                 >
                   <span>New Session</span>
                   <span className="text-[10px] text-ink-low font-mono">Ctrl+N</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenMenu(null);
-                    onSelectPage("projects");
-                  }}
-                  className="flex w-full items-center justify-between px-2.5 py-1.5 rounded text-left text-ink-high hover:bg-glass-2 hover:text-white"
-                >
-                  <span>Open Projects</span>
-                  <span className="text-[10px] text-ink-low font-mono">Ctrl+P</span>
                 </button>
                 <div className="my-1 border-t border-edge-subtle" />
                 <button
@@ -300,17 +301,14 @@ export default function Titlebar({
       </div>
 
       {/* ── Center: Draggable Window Region ───────────────────────────────── */}
-      <div
-        className="absolute inset-0 flex items-center justify-center pointer-events-auto cursor-default"
-        data-tauri-drag-region
-      >
+      <div className="pointer-events-none absolute inset-y-0 left-[15%] right-[15%] z-0 flex items-center justify-center">
         <span className="text-[11px] font-medium tracking-wider text-ink-low pointer-events-none uppercase">
           Gravity
         </span>
       </div>
 
       {/* ── Right: Auto-Switch pill, New Session, Window Controls ─────────── */}
-      <div className="flex items-center gap-1.5 pr-1 z-10">
+      <div className="relative z-10 flex items-center gap-1.5 pr-1">
         {autoSwitchArmed && (
           <div
             className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border border-blue-500/30 text-blue-400"

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Project } from "./Projects";
+import { Project } from "../types/project";
 import { Profile, Session } from "./Profiles";
 import { UsageReading } from "../components/UsageBadge";
 import ProjectHero from "../components/workspace/ProjectHero";
@@ -13,8 +13,6 @@ interface WorkspaceViewProps {
   usageReading?: UsageReading | null;
   activeSessions: Session[];
   onSelectProfile: (id: string) => void;
-  onOpenCreateProject?: () => void;
-  onSelectProjectName?: () => void;
   onSessionSpawned?: (session: Session) => void;
 }
 
@@ -25,8 +23,6 @@ export default function WorkspaceView({
   usageReading,
   activeSessions,
   onSelectProfile,
-  onOpenCreateProject,
-  onSelectProjectName,
   onSessionSpawned,
 }: WorkspaceViewProps) {
   const [isLaunching, setIsLaunching] = useState(false);
@@ -74,8 +70,6 @@ export default function WorkspaceView({
         profile={activeProfile}
         usageReading={usageReading}
         activeSessionCount={projectSessions.length}
-        onOpenCreateProject={onOpenCreateProject}
-        onSelectProjectName={onSelectProjectName}
       />
 
       {/* Bottom Floating Command Capsule */}

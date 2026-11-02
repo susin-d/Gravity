@@ -11,7 +11,7 @@ import {
   ArrowUp,
   Loader2,
 } from "lucide-react";
-import { Project } from "../../pages/Projects";
+import { Project } from "../../types/project";
 import { Profile } from "../../pages/Profiles";
 
 interface DockedLauncherProps {

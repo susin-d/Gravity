@@ -1,5 +1,5 @@
-import { Terminal, Plus, ShieldAlert, Cpu } from "lucide-react";
-import { Project } from "../../pages/Projects";
+import { Terminal, ShieldAlert, Cpu } from "lucide-react";
+import { Project } from "../../types/project";
 import { Profile } from "../../pages/Profiles";
 import UsageBadge, { UsageReading } from "../UsageBadge";
 
@@ -8,8 +8,6 @@ interface ProjectHeroProps {
   profile: Profile | null;
   usageReading?: UsageReading | null;
   activeSessionCount?: number;
-  onOpenCreateProject?: () => void;
-  onSelectProjectName?: () => void;
 }
 
 export default function ProjectHero({
@@ -17,8 +15,6 @@ export default function ProjectHero({
   profile,
   usageReading,
   activeSessionCount = 0,
-  onOpenCreateProject,
-  onSelectProjectName,
 }: ProjectHeroProps) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 text-center select-none">
@@ -32,16 +28,7 @@ export default function ProjectHero({
       {project ? (
         <div className="max-w-2xl">
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white leading-snug">
-            What should we build in{" "}
-            <button
-              type="button"
-              onClick={onSelectProjectName}
-              className="underline decoration-dotted underline-offset-8 decoration-white/40 hover:decoration-white hover:text-white transition-all cursor-pointer"
-              title="Click to view project settings"
-            >
-              {project.name}
-            </button>
-            ?
+            What should we build in {project.name}?
           </h1>
 
           {/* Sub-status bar / Telemetry */}
@@ -84,20 +71,8 @@ export default function ProjectHero({
             Select a project to start
           </h1>
           <p className="mt-2 text-sm text-ink-mid">
-            Choose a registered project from the sidebar, or register a new workspace directory.
+            Choose a registered project from the sidebar to start.
           </p>
-          {onOpenCreateProject && (
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={onOpenCreateProject}
-                className="inline-flex items-center gap-2 rounded-xl border border-edge-DEFAULT bg-white px-4 py-2 text-xs font-medium text-black hover:bg-neutral-200 transition-colors shadow-glow"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Register New Project</span>
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

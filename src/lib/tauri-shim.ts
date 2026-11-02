@@ -224,7 +224,7 @@ export function initTauriShim() {
           return {
             app_data_dir: "C:\\Users\\susin\\AppData\\Roaming\\Gravity",
             db_path: "C:\\Users\\susin\\AppData\\Roaming\\Gravity\\gravity.db",
-            flags: { auto_switch: true },
+            flags: { auto_switch: false },
           };
 
         case "list_profiles":
