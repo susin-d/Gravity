@@ -354,7 +354,7 @@ export default function Projects() {
                     <option value="auto">Auto (WT / PS)</option>
                     <option value="wt">Windows Terminal</option>
                     <option value="powershell">PowerShell</option>
-                    <option value="wsl" disabled>WSL (planned)</option>
+                    <option value="wsl" disabled>WSL (WSL support planned)</option>
                   </select>
                 </div>
               </div>

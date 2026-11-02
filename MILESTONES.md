@@ -1,7 +1,7 @@
 # Gravity — Milestones, Deliverables & Feature Roadmap
 
 > **Project:** Gravity  
-> **Status:** Active Implementation (M0, M1, M2, M3, M4, M5 Complete)  
+> **Status:** v0.1 Complete (M0 through M7 Implemented & Verified)  
 > **Target OS:** Windows 10/11 (Native Win32 + Tauri 2)
 
 ---
@@ -17,7 +17,7 @@
 | **M4** | Provider Adapters & Fixtures | ✅ Complete | v0.1 | Claude Code & Codex Output Parsers, <1s Rate Limit Detection, Fixture Suite |
 | **M5** | Limit Toast, Session Switch & Modal | ✅ Complete | v0.1 | Non-blocking Toast, MRU Fallback Engine, Client Boundary Consent Modal |
 | **M6** | Auto-Switch Policy Engine | ✅ Complete | v0.1 | `flags.toml` Gated Engine, Client Boundary Lockout, Auto-Switch Banners |
-| **M7** | Audit History & Final Polish | 🔄 Next | v0.1 | Filterable Timeline, Adapter Health Monitor, Long Path Support (`\\?\`) |
+| **M7** | Audit History & Final Polish | ✅ Complete | v0.1 | Filterable Timeline, Adapter Health Monitor, Long Path Support (`\\?\`) |
 | **v0.2+**| Extended Ecosystem (Backlog) | 💡 Backlog | v0.2+ | WSL Bridge, Headless CLI, Global Hotkeys, Custom Terminals |
 
 ---
@@ -134,17 +134,17 @@
 ---
 
 ### [M7] Audit History, Adapter Health & Production Polish
-- [ ] **Session & Switch Audit Timeline (`History.tsx`):**
+- [x] **Session & Switch Audit Timeline (`History.tsx`):**
   - Visual chronological timeline of sessions, limits hit, and profile transitions.
   - Filter by project, profile, tag, and date range.
-- [ ] **Adapter Health View (`AdapterHealth.tsx`):**
+- [x] **Adapter Health View (`AdapterHealth.tsx`):**
   - Real-time health badges (`ok` vs. `degraded`).
   - Prominent manual switch recommendations when CLI adapters are degraded.
-- [ ] **Long Path & UNC Support:**
+- [x] **Long Path & UNC Support:**
   - Support paths $> 260$ characters via Win32 extended-length `\\?\` prefix.
-- [ ] **Sensitive Data Redaction:**
+- [x] **Sensitive Data Redaction:**
   - Tracing filter scrubbers to redact keys, tokens, and authorization headers from application logs.
-- [ ] **WSL Notice:**
+- [x] **WSL Notice:**
   - Terminal picker displays *"WSL support planned"* as disabled option with tooltip.
 
 ---

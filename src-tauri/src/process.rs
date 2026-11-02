@@ -108,6 +108,29 @@ impl ProcessManager {
 }
 
 /// Detect availability of Windows Terminal (`wt.exe`).
+/// Normalizes a Windows path, applying the extended-length `\\?\` prefix when the path
+/// exceeds 240 characters (per Win32 MAX_PATH / AC-03 requirement) to support arbitrary deep trees.
+pub fn normalize_win32_path(path_str: &str) -> String {
+    let trimmed = path_str.trim();
+    if trimmed.is_empty() {
+        return "C:\\".to_string();
+    }
+
+    if trimmed.len() >= 240 && !trimmed.starts_with(r"\\?\") {
+        if trimmed.starts_with(r"\\") {
+            // UNC path: \\server\share -> \\?\UNC\server\share
+            format!(r"\\?\UNC\{}", &trimmed[2..])
+        } else if trimmed.chars().nth(1) == Some(':') {
+            // Drive-letter path: C:\deep\... -> \\?\C:\deep\...
+            format!(r"\\?\{trimmed}")
+        } else {
+            trimmed.to_string()
+        }
+    } else {
+        trimmed.to_string()
+    }
+}
+
 pub fn find_windows_terminal() -> Option<PathBuf> {
     // 1. Check PATH
     if let Some(path_var) = std::env::var_os("PATH") {
@@ -238,7 +261,7 @@ pub async fn spawn_session(
         },
     };
 
-    let target_dir = opts
+    let raw_dir = opts
         .project_path
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| {
@@ -246,6 +269,7 @@ pub async fn spawn_session(
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|| "C:\\".to_string())
         });
+    let target_dir = normalize_win32_path(&raw_dir);
 
     let (terminal_exe, cmd_line) = match find_windows_terminal() {
         Some(wt_path) => {
@@ -253,7 +277,7 @@ pub async fn spawn_session(
             let cmd = format!(
                 "\"{}\" -d \"{}\" -- powershell.exe -NoExit -Command \"{}\"",
                 wt_path.to_string_lossy(),
-                target_dir,
+                target_dir.replace('"', "\\\""),
                 cli_cmd
             );
             (wt_path.to_string_lossy().to_string(), cmd)
@@ -263,7 +287,8 @@ pub async fn spawn_session(
             warn!("Windows Terminal not found; falling back to powershell.exe");
             let cmd = format!(
                 "powershell.exe -NoExit -Command \"Set-Location -LiteralPath '{}'; {}\"",
-                target_dir, cli_cmd
+                target_dir.replace('\'', "''"),
+                cli_cmd
             );
             ("powershell.exe".to_string(), cmd)
         }
@@ -354,5 +379,23 @@ mod tests {
         // Must succeed on Windows 10/11
         let job = OwnedJobObject::new();
         assert!(job.is_ok());
+    }
+
+    #[test]
+    fn test_normalize_win32_path_short_and_spaces() {
+        let p = r"C:\My Projects\Client App";
+        let norm = normalize_win32_path(p);
+        assert_eq!(norm, p);
+    }
+
+    #[test]
+    fn test_normalize_win32_path_exceeding_260_chars_ac03() {
+        // AC-03: Paths exceeding 260 chars must be prefixed with \\?\
+        let deep_sub = "sub\\".repeat(60); // 240 chars
+        let long_path = format!(r"C:\project\Gravity\{}", deep_sub);
+        assert!(long_path.len() > 250);
+
+        let norm = normalize_win32_path(&long_path);
+        assert!(norm.starts_with(r"\\?\C:\project\Gravity\"));
     }
 }
