@@ -1,7 +1,7 @@
 # Gravity — Milestones, Deliverables & Feature Roadmap
 
 > **Project:** Gravity  
-> **Status:** Active Implementation (M0 Complete)  
+> **Status:** Active Implementation (M0, M1, M2 Complete)  
 > **Target OS:** Windows 10/11 (Native Win32 + Tauri 2)
 
 ---
@@ -12,8 +12,8 @@
 |---|---|:---:|---|---|
 | **M0** | Core Foundation & Shell | ✅ Complete | v0.1 | Single Instance Mutex, SQLite (WAL), Flags Loader, Settings View |
 | **M1** | Profiles, Isolation & Process Engine | ✅ Complete | v0.1 | DPAPI Credential Storage, Clean Env Block, Job Objects, Terminal Spawner |
-| **M2** | Project Registry & Tagging | 🔄 Next | v0.1 | Directory Registry, `personal` / `work` / `client` Tags, Policy Storage |
-| **M3** | Honest Telemetry & Badges | 📋 Planned | v0.1 | Tri-state Usage (`official`/`estimated`/`unknown`), No fake UI, Reset Timers |
+| **M2** | Project Registry & Tagging | ✅ Complete | v0.1 | Directory Registry, `personal` / `work` / `client` Tags, Policy Storage |
+| **M3** | Honest Telemetry & Badges | 🔄 Next | v0.1 | Tri-state Usage (`official`/`estimated`/`unknown`), No fake UI, Reset Timers |
 | **M4** | Provider Adapters & Fixtures | 📋 Planned | v0.1 | Claude Code & Codex Output Parsers, <1s Rate Limit Detection, Fixture Suite |
 | **M5** | Limit Toast, Session Switch & Modal | 📋 Planned | v0.1 | Non-blocking Toast, MRU Fallback Engine, Client Boundary Consent Modal |
 | **M6** | Auto-Switch Policy Engine | 📋 Planned | v0.1 | `flags.toml` Gated Engine, Client Boundary Lockout, Auto-Switch Banners |
@@ -54,16 +54,17 @@
 ---
 
 ### [M2] Project Registry, Tags & Per-Project Policy Storage
-- [ ] **Project Directory Registry:**
+- [x] **Project Directory Registry:**
   - Register local folders by path with auto-detected repository names.
   - SQLite tracking in `projects` table.
-- [ ] **Data Boundary Tagging:**
+- [x] **Data Boundary Tagging:**
   - Tag assignment: `personal` | `work` | `client`.
   - Default profile per project.
-- [ ] **Terminal Preference Selection:**
-  - Allow per-project override (`auto`, `wt`, `powershell`).
-- [ ] **Client Project Guard:**
+- [x] **Terminal Preference Selection:**
+  - Allow per-project override (`auto`, `wt`, `powershell`, disabled `wsl`).
+- [x] **Client Project Guard:**
   - Strict UI disablement: Projects tagged `client` have auto-switch disabled with an immutable explanation tooltip.
+  - Backend enforcement: `set_auto_switch` returns error if project tag is `client` or `flags.auto_switch` is false.
 
 ---
 
