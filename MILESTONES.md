@@ -11,8 +11,8 @@
 | Milestone | Focus Area | Status | Target | Primary Deliverables |
 |---|---|:---:|---|---|
 | **M0** | Core Foundation & Shell | ✅ Complete | v0.1 | Single Instance Mutex, SQLite (WAL), Flags Loader, Settings View |
-| **M1** | Profiles, Isolation & Process Engine | 🔄 Next | v0.1 | DPAPI Credential Storage, Clean Env Block, Job Objects, Terminal Spawner |
-| **M2** | Project Registry & Tagging | 📋 Planned | v0.1 | Directory Registry, `personal` / `work` / `client` Tags, Policy Storage |
+| **M1** | Profiles, Isolation & Process Engine | ✅ Complete | v0.1 | DPAPI Credential Storage, Clean Env Block, Job Objects, Terminal Spawner |
+| **M2** | Project Registry & Tagging | 🔄 Next | v0.1 | Directory Registry, `personal` / `work` / `client` Tags, Policy Storage |
 | **M3** | Honest Telemetry & Badges | 📋 Planned | v0.1 | Tri-state Usage (`official`/`estimated`/`unknown`), No fake UI, Reset Timers |
 | **M4** | Provider Adapters & Fixtures | 📋 Planned | v0.1 | Claude Code & Codex Output Parsers, <1s Rate Limit Detection, Fixture Suite |
 | **M5** | Limit Toast, Session Switch & Modal | 📋 Planned | v0.1 | Non-blocking Toast, MRU Fallback Engine, Client Boundary Consent Modal |
@@ -33,20 +33,20 @@
 ---
 
 ### [M1] Profiles, Credential Manager, Env Block, Win32 Job Objects & Terminal Launch
-- [ ] **Profile Directory Manager:**
+- [x] **Profile Directory Manager:**
   - Allocate isolated config directories at `%APPDATA%\Gravity\profiles\<uuid>`.
   - Vendor directory mapping: `CLAUDE_CONFIG_DIR` (Claude) and `CODEX_HOME` (Codex).
-- [ ] **Native Credential Security:**
+- [x] **Native Credential Security:**
   - Store tokens and API keys in Windows Credential Manager via `keyring` (`service = "gravity:<uuid>"`).
   - DPAPI hardware-backed encryption under user session.
-- [ ] **Sanitized Environment Block Generator:**
+- [x] **Sanitized Environment Block Generator:**
   - `build_env_block`: Scrub host environment of all `ANTHROPIC_*`, `OPENAI_*`, `CLAUDE_*`, `CODEX_*` variables.
   - Inject only baseline OS paths (`SYSTEMROOT`, `PATH`, `TEMP`) plus the profile's dedicated config path.
-- [ ] **Process Lifecycle & Win32 Job Objects:**
+- [x] **Process Lifecycle & Win32 Job Objects:**
   - Spawning via Win32 `CreateProcessW`.
   - Assign processes to Win32 Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`.
   - Zero orphan process guarantee: closing or killing Gravity immediately terminates child CLIs.
-- [ ] **Terminal Launcher Hierarchy:**
+- [x] **Terminal Launcher Hierarchy:**
   - Probe for Windows Terminal (`wt.exe` in `PATH` / WindowsApps).
   - Launch tab in project directory: `wt.exe -d "<path>" -- powershell.exe ...`.
   - Graceful fallback to standalone PowerShell (`powershell.exe`) with one-time notification if `wt.exe` is absent.
