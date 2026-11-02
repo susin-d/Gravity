@@ -6,7 +6,6 @@ import {
   Terminal,
   AlertTriangle,
   X,
-  Zap,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -163,21 +162,7 @@ export default function Profiles() {
     }
   };
 
-  const handleSimulateLimit = async (fromProfile: Profile) => {
-    try {
-      const suggestion = await invoke<Profile | null>(
-        "suggest_fallback_profile",
-        { fromProfileId: fromProfile.id }
-      );
-      setActiveToast({
-        fromProfile,
-        suggestedProfile: suggestion,
-        rawSignal: `Rate limit reached on ${fromProfile.label}. 429 Too Many Requests. Quota exhausted.`,
-      });
-    } catch (err) {
-      setError(String(err));
-    }
-  };
+
 
   const handleContinueSwitch = async (targetProfile: Profile) => {
     if (!activeToast) return;
@@ -240,50 +225,13 @@ export default function Profiles() {
     }
   };
 
-  const handleSimulateUsage = async (
-    profileId: string,
-    state: "official" | "estimated" | "unknown"
-  ) => {
+  const handleRefreshUsage = async (profileId: string) => {
     try {
       setRefreshingUsageId(profileId);
-      let payload;
-      if (state === "official") {
-        const resetTime = new Date(Date.now() + 2.5 * 3600 * 1000).toISOString();
-        payload = {
-          profile_id: profileId,
-          source: "official",
-          window: "daily",
-          value_used: 18240,
-          value_limit: 50000,
-          unit: "tokens",
-          reset_at: resetTime,
-          detail: "Official API quota reading",
-        };
-      } else if (state === "estimated") {
-        payload = {
-          profile_id: profileId,
-          source: "estimated",
-          window: "5min",
-          value_used: 42,
-          value_limit: 100,
-          unit: "reqs",
-          reset_at: null,
-          detail: "Estimated from terminal response rate",
-        };
-      } else {
-        payload = {
-          profile_id: profileId,
-          source: "unknown",
-          window: null,
-          value_used: null,
-          value_limit: null,
-          unit: null,
-          reset_at: null,
-          detail: "CLI version does not support automated telemetry.",
-        };
+      const res = await invoke<UsageReading | null>("get_profile_usage", { profileId });
+      if (res) {
+        setUsages((prev) => ({ ...prev, [profileId]: res }));
       }
-      await invoke("record_usage", { input: payload });
-      await loadData();
     } catch (err) {
       setError(String(err));
     } finally {
@@ -406,43 +354,9 @@ export default function Profiles() {
                   <div className="mt-4">
                     <UsageBadge
                       reading={usage}
-                      onRefresh={() => handleSimulateUsage(p.id, "official")}
+                      onRefresh={() => handleRefreshUsage(p.id)}
                       refreshing={refreshingUsageId === p.id}
                     />
-
-                    {/* Debug simulation options */}
-                    <div className="mt-2.5 flex items-center justify-between text-[10px] text-text-tertiary">
-                      <button
-                        onClick={() => handleSimulateLimit(p)}
-                        className="flex items-center gap-1 text-amber-400/90 hover:text-amber-300 font-medium transition-colors"
-                        title="Simulate rate limit hit"
-                      >
-                        <Zap className="h-3 w-3" />
-                        <span>Simulate limit</span>
-                      </button>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleSimulateUsage(p.id, "official")}
-                          className="hover:text-emerald-400 transition-colors"
-                        >
-                          [Official]
-                        </button>
-                        <span className="text-border">·</span>
-                        <button
-                          onClick={() => handleSimulateUsage(p.id, "estimated")}
-                          className="hover:text-amber-400 transition-colors"
-                        >
-                          [Est]
-                        </button>
-                        <span className="text-border">·</span>
-                        <button
-                          onClick={() => handleSimulateUsage(p.id, "unknown")}
-                          className="hover:text-text-secondary transition-colors"
-                        >
-                          [Unknown]
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </div>
 

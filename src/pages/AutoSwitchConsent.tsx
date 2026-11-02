@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
-import { Shield, AlertTriangle, Play, Lock, CheckCircle2 } from "lucide-react";
+import { Shield, Lock, CheckCircle2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -22,25 +22,12 @@ interface AppSettings {
   };
 }
 
-interface SwitchEvent {
-  id: string;
-  session_id?: string;
-  from_profile_id: string;
-  to_profile_id: string;
-  project_id?: string;
-  reason: string;
-  outcome: string;
-  switched_at: string;
-  error_detail?: string;
-}
-
 export default function AutoSwitchConsent() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [excludedProfileIds, setExcludedProfileIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -74,18 +61,6 @@ export default function AutoSwitchConsent() {
     });
   };
 
-  const handleTestAutoSwitch = async () => {
-    try {
-      setTestResult("Simulating engine evaluation on mock test session...");
-      const result = await invoke<SwitchEvent | null>("trigger_auto_switch", {
-        sessionId: "mock-session-test",
-      });
-      setTestResult(result ? JSON.stringify(result, null, 2) : "No switch occurred (guards active or session not found)");
-    } catch (err) {
-      setTestResult(`Engine Guard Response: ${err}`);
-    }
-  };
-
   const isAutoSwitchActive = settings?.flags?.auto_switch ?? false;
 
   return (
@@ -98,102 +73,88 @@ export default function AutoSwitchConsent() {
       <div className="flex items-center justify-between border-b border-border-subtle pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-text-primary">
-              Auto-Switch Consent & Allowlist
+            <h2 className="text-xl font-bold tracking-tight text-text-primary">
+              Auto-Switch Policies & Consent
             </h2>
+            <Badge variant="warning">M6 Guarded</Badge>
           </div>
-          <p className="text-xs text-text-tertiary mt-0.5">
-            Automated session rate-limit recovery policy engine (Milestone M6)
+          <p className="text-xs text-text-tertiary mt-1">
+            Automated profile switching on rate limit detection. Governed by flags.toml and client isolation barriers.
           </p>
         </div>
-        <Badge variant={isAutoSwitchActive ? "success" : "neutral"} className="px-3 py-1 text-xs">
-          {isAutoSwitchActive ? "Engine Armed (Flag Active)" : "Engine Gated (Flag Disabled)"}
-        </Badge>
       </div>
 
       {error && (
-        <div className="bg-red-950/40 border border-red-800 rounded-xl p-4 text-xs text-red-300">
-          {error}
+        <div className="bg-red-950/40 border border-red-800 text-red-200 text-xs p-3 rounded-lg flex items-center justify-between">
+          <span>{error}</span>
+          <Button variant="ghost" size="sm" onClick={() => setError(null)}>
+            Dismiss
+          </Button>
         </div>
       )}
 
-      {/* Flag Gate Status Card */}
-      {!isAutoSwitchActive && (
-        <Card className="border-amber-800/60 bg-amber-950/20">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
-              <AlertTriangle className="h-4 w-4" />
-              <span>Master Feature Flag Is Inactive</span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2 text-xs text-amber-200/80 leading-relaxed">
-            <p>
-              Per <strong>Prime Directive #4</strong> and <strong>Acceptance Criterion AC-10</strong>, the auto-switch policy engine is strictly gated.
-              To enable this engine, edit <code className="bg-black/40 px-1 py-0.5 rounded text-amber-300 font-mono">flags.toml</code> in{" "}
-              <code className="text-text-primary">{settings?.app_data_dir || "%APPDATA%\\Gravity"}</code> and set:
-            </p>
-            <pre className="bg-black/50 p-2.5 rounded-lg text-xs font-mono text-text-secondary">auto_switch = true</pre>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Prime Directive Policy Shield Banner */}
+      {/* Feature Flag Status */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Shield className="h-4 w-4 text-gravity-400" />
-            <span>Security & Boundary Isolation Rules</span>
+            <span>Master Capability Status</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            <div className="bg-surface-1 border border-border-subtle rounded-xl p-3.5 space-y-1">
-              <span className="font-semibold text-text-primary block">Session Boundary Only</span>
-              <p className="text-text-tertiary leading-relaxed">
-                Switches only execute when an active CLI session halts on a 429 or quota limit error.
-              </p>
-            </div>
-            <div className="bg-surface-1 border border-border-subtle rounded-xl p-3.5 space-y-1">
-              <span className="font-semibold text-amber-400 block">Client Account Lockout</span>
-              <p className="text-text-tertiary leading-relaxed">
-                Profiles tagged <code className="text-amber-300">client</code> are strictly immutable and never auto-switched.
-              </p>
-            </div>
-            <div className="bg-surface-1 border border-border-subtle rounded-xl p-3.5 space-y-1">
-              <span className="font-semibold text-sky-400 block">Audit Guaranteed</span>
-              <p className="text-text-tertiary leading-relaxed">
-                Every switch attempt logs an immutable record into SQLite table <code className="text-sky-300 font-mono">switch_events</code>.
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-text-primary">
+                  Automated Switch Engine:
+                </span>
+                <Badge variant={isAutoSwitchActive ? "success" : "neutral"}>
+                  {isAutoSwitchActive ? "ARMED (flags.toml: true)" : "DISARMED (flags.toml: false)"}
+                </Badge>
+              </div>
+              <p className="text-xs text-text-tertiary">
+                Requires explicit flag enablement in <code className="text-text-secondary bg-surface-3 px-1 py-0.5 rounded font-mono">flags.toml</code>.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Allowlist & Profile Eligibility Table */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">Profile Auto-Switch Allowlist</h3>
-          <span className="text-xs text-text-tertiary">
-            {profiles.filter((p) => p.tag !== "client").length} eligible profiles
-          </span>
+      {/* Security Isolation Notice */}
+      <div className="bg-surface-2 border border-border-subtle rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-2 text-text-primary text-xs font-semibold">
+          <Lock className="h-4 w-4 text-amber-400 flex-shrink-0" />
+          <span>Security &amp; Client Data Isolation Rules</span>
         </div>
+        <ul className="text-xs text-text-secondary space-y-1.5 list-disc pl-5">
+          <li>
+            <strong className="text-text-primary">Strict Client Exemption:</strong> Projects or profiles tagged as{" "}
+            <Badge variant="client" className="mx-1">CLIENT</Badge> are permanently blocked from auto-switching.
+          </li>
+          <li>
+            <strong className="text-text-primary">Vendor Matching:</strong> Automated fallback only switches within the same vendor ecosystem (Claude Code &rarr; Claude Code, Codex &rarr; Codex).
+          </li>
+          <li>
+            <strong className="text-text-primary">Audit Log:</strong> Every automated switch writes an immutable event into SQLite with policy snapshot and timestamp.
+          </li>
+        </ul>
+      </div>
 
+      {/* Profile Allowlist Matrix */}
+      <div className="space-y-3">
+        <h3 className="section-heading">Auto-Switch Profile Allowlist</h3>
         {loading ? (
-          <div className="p-8 text-center text-text-tertiary text-xs">Loading profiles…</div>
-        ) : profiles.length === 0 ? (
-          <div className="p-8 text-center card text-text-tertiary text-xs">
-            No profiles registered. Create profiles in the Profiles tab first.
-          </div>
+          <div className="text-xs text-text-tertiary">Loading profile inventory...</div>
         ) : (
           <div className="card overflow-hidden">
             <table className="w-full text-left text-xs">
-              <thead className="bg-surface-1 border-b border-border-subtle text-text-tertiary uppercase text-[10px]">
+              <thead className="bg-surface-1 text-text-tertiary uppercase text-[10px] tracking-wider">
                 <tr>
-                  <th className="py-3 px-4">Profile</th>
-                  <th className="py-3 px-4">Vendor</th>
-                  <th className="py-3 px-4">Tag</th>
-                  <th className="py-3 px-4">Eligibility Status</th>
-                  <th className="py-3 px-4 text-right">Allowlist State</th>
+                  <th className="p-3">Profile Label</th>
+                  <th className="p-3">Vendor</th>
+                  <th className="p-3">Tag</th>
+                  <th className="p-3">Policy Eligibility</th>
+                  <th className="p-3 text-right">Inclusion Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle">
@@ -203,39 +164,39 @@ export default function AutoSwitchConsent() {
 
                   return (
                     <tr key={p.id} className="hover:bg-surface-3 transition-colors">
-                      <td className="py-3 px-4 font-medium text-text-primary">
-                        {p.label}
+                      <td className="p-3 font-medium text-text-primary">{p.label}</td>
+                      <td className="p-3">
+                        <Badge variant={p.vendor === "claude" ? "claude" : "codex"}>
+                          {p.vendor}
+                        </Badge>
                       </td>
-                      <td className="py-3 px-4 text-text-tertiary font-mono capitalize">
-                        {p.vendor}
-                      </td>
-                      <td className="py-3 px-4">
+                      <td className="p-3">
                         <Badge variant={p.tag}>{p.tag}</Badge>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="p-3">
                         {isClient ? (
-                          <span className="flex items-center gap-1.5 text-amber-400 font-medium">
-                            <Lock className="h-3 w-3" /> Excluded by Client Boundary
-                          </span>
+                          <div className="flex items-center gap-1.5 text-amber-400">
+                            <Lock className="h-3 w-3" />
+                            <span>Hard Blocked (Client)</span>
+                          </div>
                         ) : isExcluded ? (
-                          <span className="text-text-tertiary">Excluded by user preference</span>
+                          <div className="flex items-center gap-1.5 text-text-tertiary">
+                            <span>Manually Excluded</span>
+                          </div>
                         ) : (
-                          <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Eligible for Auto-Switch
-                          </span>
+                          <div className="flex items-center gap-1.5 text-emerald-400">
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span>Eligible for Fallback</span>
+                          </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="p-3 text-right">
                         {isClient ? (
-                          <span
-                            className="text-text-tertiary cursor-not-allowed select-none text-[11px]"
-                            title="Client profiles can never be included in automated switches"
-                          >
-                            Locked
+                          <span className="text-[11px] text-text-tertiary italic">
+                            Non-configurable
                           </span>
                         ) : (
                           <Button
-                            type="button"
                             size="sm"
                             variant={isExcluded ? "secondary" : "default"}
                             disabled={!isAutoSwitchActive}
@@ -254,29 +215,6 @@ export default function AutoSwitchConsent() {
           </div>
         )}
       </div>
-
-      <div className="flex items-center justify-between pt-2">
-        <span className="text-xs text-text-tertiary">
-          Simulate auto-switch execution on rate limit:
-        </span>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={handleTestAutoSwitch}
-          className="flex items-center gap-1.5"
-        >
-          <Play className="h-3 w-3" />
-          <span>Run Engine Simulation Test</span>
-        </Button>
-      </div>
-
-      {testResult && (
-        <div className="card p-4 text-xs font-mono text-text-secondary">
-          <p className="font-semibold text-text-primary mb-1">Engine Evaluation Result:</p>
-          <pre className="text-emerald-400 whitespace-pre-wrap">{testResult}</pre>
-        </div>
-      )}
     </motion.div>
   );
 }

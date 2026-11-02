@@ -123,15 +123,6 @@ export default function App() {
 
       {/* ── Main content ── */}
       <main className="flex-1 overflow-y-auto">
-        {typeof window !== "undefined" && Boolean(window.__GRAVITY_BROWSER_MODE__) && (
-          <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5 flex items-center justify-between text-xs text-amber-300">
-            <span className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-              Browser Preview Mode — Mock Tauri IPC active. Native Win32 Job Objects run in desktop app.
-            </span>
-            <span className="font-mono text-[10px] text-amber-400/70">Local Preview</span>
-          </div>
-        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={page}
