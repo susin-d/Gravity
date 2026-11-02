@@ -1,0 +1,86 @@
+pub mod commands;
+pub mod db;
+pub mod flags;
+pub mod single_instance;
+
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use tauri::Manager;
+use tracing::info;
+use tracing_subscriber::EnvFilter;
+
+use db::Db;
+use flags::FeatureFlags;
+
+/// Shared application state accessible from Tauri commands.
+pub struct AppState {
+    pub db: Db,
+    pub flags: FeatureFlags,
+    pub app_data_dir: PathBuf,
+}
+
+pub fn run() {
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
+        .init();
+
+    // Single instance check
+    let _guard = match single_instance::acquire() {
+        Ok(guard) => guard,
+        Err(()) => {
+            eprintln!("Another instance of Gravity is already running. Exiting.");
+            std::process::exit(0);
+        }
+    };
+
+    info!("Gravity v{} starting", env!("CARGO_PKG_VERSION"));
+
+    // Determine app data directory (%APPDATA%\Gravity)
+    let app_data_dir = dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("Gravity");
+    std::fs::create_dir_all(&app_data_dir).expect("Failed to create app data directory");
+
+    info!("App data dir: {}", app_data_dir.display());
+
+    // Load feature flags
+    let flags = FeatureFlags::load(&app_data_dir);
+    info!("Feature flags: {:?}", flags);
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .setup(move |app| {
+            let app_data = app_data_dir.clone();
+            let handle = app.handle().clone();
+
+            tauri::async_runtime::spawn(async move {
+                match Db::open(&app_data).await {
+                    Ok(db) => {
+                        let state = Arc::new(AppState {
+                            db,
+                            flags: FeatureFlags::load(&app_data),
+                            app_data_dir: app_data,
+                        });
+                        handle.manage(state);
+                        info!("Database initialized and state registered");
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to initialize database: {e}");
+                    }
+                }
+            });
+
+            info!("Setup complete");
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::get_version,
+            commands::get_settings
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running Gravity");
+}
