@@ -21,71 +21,63 @@ export default function Settings() {
 
   return (
     <div className="p-6 max-w-2xl">
-      <h2 className="text-xl font-bold mb-6">Settings</h2>
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-text-primary">Settings</h2>
+        <p className="text-xs text-text-tertiary mt-0.5">
+          Application data paths and feature flag status.
+        </p>
+      </div>
 
       {error && (
-        <div className="bg-red-900/30 border border-red-700 rounded-lg p-4 mb-4">
+        <div className="bg-red-950/30 border border-red-800/60 rounded-lg p-3 mb-4">
           <p className="text-sm text-red-300">{error}</p>
         </div>
       )}
 
       {settings ? (
-        <div className="space-y-6">
-          {/* Data location */}
-          <Section title="Data">
+        <div className="space-y-4">
+          {/* Data paths */}
+          <SettingsSection title="Data">
             <InfoRow label="App data" value={settings.app_data_dir} />
             <InfoRow label="Database" value={settings.db_path} />
-          </Section>
+          </SettingsSection>
 
           {/* Feature flags */}
-          <Section title="Feature Flags">
-            <div className="flex items-center justify-between py-2">
+          <SettingsSection title="Feature Flags">
+            <div className="flex items-center justify-between py-1">
               <div>
-                <p className="text-sm font-medium text-gray-300">
-                  Auto-switch
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Automatically switch to a non-limited profile when a rate
-                  limit is hit. Edit{" "}
-                  <code className="text-gray-400">flags.toml</code> to change.
+                <p className="text-sm font-medium text-text-primary">Auto-switch</p>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  Automated profile switching on rate-limit hit. Edit{" "}
+                  <code className="font-mono text-text-secondary">flags.toml</code> to change.
                 </p>
               </div>
-              <span
-                className={`px-2 py-0.5 rounded text-xs font-mono ${
-                  settings.flags.auto_switch
-                    ? "bg-green-900/50 text-green-400"
-                    : "bg-gray-800 text-gray-500"
-                }`}
-              >
+              <span className={settings.flags.auto_switch ? "badge-success" : "badge-neutral"}>
                 {settings.flags.auto_switch ? "enabled" : "disabled"}
               </span>
             </div>
-          </Section>
+          </SettingsSection>
         </div>
       ) : (
         !error && (
-          <p className="text-sm text-gray-500 animate-pulse">
-            Loading settings…
-          </p>
+          <div className="space-y-4">
+            <div className="card p-4 space-y-3">
+              <div className="skeleton h-3 w-20 rounded" />
+              <div className="skeleton h-4 w-64 rounded" />
+              <div className="skeleton h-4 w-48 rounded" />
+            </div>
+          </div>
         )
       )}
     </div>
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
-      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-        {title}
-      </h3>
-      <div className="space-y-2">{children}</div>
+    <div className="card p-4">
+      <h3 className="section-heading mb-3">{title}</h3>
+      <div className="space-y-3">{children}</div>
     </div>
   );
 }
@@ -93,10 +85,8 @@ function Section({
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start gap-4 py-1">
-      <span className="text-sm text-gray-500 min-w-[80px]">{label}</span>
-      <code className="text-sm text-gray-300 break-all font-mono">
-        {value}
-      </code>
+      <span className="text-xs text-text-tertiary min-w-[80px] flex-shrink-0">{label}</span>
+      <code className="text-xs text-text-secondary break-all font-mono leading-relaxed">{value}</code>
     </div>
   );
 }

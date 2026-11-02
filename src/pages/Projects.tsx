@@ -1,6 +1,24 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { motion } from "framer-motion";
+import {
+  Folder,
+  Plus,
+  Trash2,
+  X,
+  Play,
+} from "lucide-react";
 import { Profile } from "./Profiles";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import { Switch } from "../components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../components/ui/dialog";
 
 export interface Project {
   id: string;
@@ -15,9 +33,7 @@ export interface Project {
 }
 
 interface AppSettings {
-  flags: {
-    auto_switch: boolean;
-  };
+  flags: { auto_switch: boolean };
 }
 
 export default function Projects() {
@@ -27,7 +43,6 @@ export default function Projects() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // New project modal state
   const [showModal, setShowModal] = useState<boolean>(false);
   const [path, setPath] = useState<string>("");
   const [name, setName] = useState<string>("");
@@ -35,8 +50,6 @@ export default function Projects() {
   const [defaultProfileId, setDefaultProfileId] = useState<string>("");
   const [terminal, setTerminal] = useState<string>("auto");
   const [submitting, setSubmitting] = useState<boolean>(false);
-
-  // Launching state
   const [launchingId, setLaunchingId] = useState<string | null>(null);
 
   const loadData = async () => {
@@ -65,7 +78,6 @@ export default function Projects() {
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!path.trim()) return;
-
     try {
       setSubmitting(true);
       await invoke("create_project", {
@@ -77,8 +89,6 @@ export default function Projects() {
           terminal,
         },
       });
-
-      // Reset
       setPath("");
       setName("");
       setTag("personal");
@@ -102,7 +112,6 @@ export default function Projects() {
       setError("Auto-switch feature is disabled in flags.toml.");
       return;
     }
-
     try {
       const newState = project.auto_switch_enabled === 0;
       await invoke("set_project_auto_switch", {
@@ -116,7 +125,12 @@ export default function Projects() {
   };
 
   const handleDeleteProject = async (id: string, projectName: string) => {
-    if (!confirm(`Unregister project "${projectName}"? Local directory files will not be deleted.`)) return;
+    if (
+      !confirm(
+        `Unregister project "${projectName}"? Local directory files will not be deleted.`
+      )
+    )
+      return;
     try {
       await invoke("delete_project", { id });
       await loadData();
@@ -144,43 +158,67 @@ export default function Projects() {
   };
 
   return (
-    <div className="p-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6 max-w-5xl space-y-6">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold">Projects</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-text-primary">Projects</h2>
+          <p className="text-xs text-text-tertiary mt-0.5">
             Directory registry with isolation tags and terminal preferences.
           </p>
         </div>
-        <button
+        <Button
           onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-gravity-600 hover:bg-gravity-500 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          size="sm"
+          className="flex items-center gap-1.5"
         >
-          + Register Project
-        </button>
+          <Plus className="h-3.5 w-3.5" />
+          <span>Register Project</span>
+        </Button>
       </div>
 
+      {/* Error */}
       {error && (
-        <div className="bg-red-900/30 border border-red-700 text-red-300 text-xs rounded-lg p-3 mb-4 flex justify-between items-center">
+        <div className="flex items-center justify-between bg-red-950/30 border border-red-800/60 text-red-300 text-xs rounded-xl p-3">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-200">✕</button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setError(null)}
+            className="h-6 w-6 text-red-400 hover:text-red-200"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
         </div>
       )}
 
+      {/* Projects List */}
       {loading ? (
-        <p className="text-sm text-gray-500 animate-pulse">Loading projects…</p>
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="card p-4 flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="skeleton h-4 w-40 rounded" />
+                <div className="skeleton h-3 w-64 rounded" />
+              </div>
+              <div className="skeleton h-8 w-20 rounded" />
+            </div>
+          ))}
+        </div>
       ) : projects.length === 0 ? (
-        <div className="border border-dashed border-gray-800 rounded-xl p-12 text-center">
-          <p className="text-gray-400 text-sm">No projects registered yet.</p>
-          <p className="text-gray-600 text-xs mt-1">
+        <div className="empty-state">
+          <p className="text-text-secondary text-sm font-medium">No projects registered</p>
+          <p className="text-text-tertiary text-xs mt-1">
             Register a repository directory to assign default profiles and boundaries.
           </p>
-          <button
+          <Button
             onClick={() => setShowModal(true)}
-            className="mt-4 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded-md"
+            variant="secondary"
+            size="sm"
+            className="mt-4"
           >
             Register your first project
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -190,213 +228,208 @@ export default function Projects() {
             const autoSwitchTooltip = isClient
               ? "Client projects are strictly protected from automated switching."
               : !flags.auto_switch
-                ? "Auto-switch is disabled in flags.toml."
-                : "Toggle automated profile switching on rate limit.";
-
-            const defaultProfile = profiles.find((p) => p.id === proj.default_profile_id);
-
-            const tagColors = {
-              personal: "bg-blue-900/50 text-blue-300 border-blue-800",
-              work: "bg-purple-900/50 text-purple-300 border-purple-800",
-              client: "bg-amber-900/50 text-amber-300 border-amber-800",
-            }[proj.tag];
+              ? "Auto-switch is disabled in flags.toml."
+              : "Toggle automated profile switching on rate limit.";
+            const defaultProfile = profiles.find(
+              (p) => p.id === proj.default_profile_id
+            );
 
             return (
-              <div
+              <motion.div
                 key={proj.id}
-                className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center justify-between hover:border-gray-700 transition-colors"
+                whileHover={{ y: -1 }}
+                transition={{ duration: 0.1 }}
+                className="card p-4 flex items-center justify-between gap-4"
               >
-                <div className="space-y-1 max-w-xl">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-200">{proj.name}</span>
-                    <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded border ${tagColors}`}>
-                      {proj.tag}
+                {/* Info */}
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-text-primary text-sm">
+                      {proj.name}
                     </span>
+                    <Badge variant={proj.tag}>{proj.tag}</Badge>
                     {proj.terminal !== "auto" && (
-                      <span className="text-[10px] font-mono text-gray-500 bg-gray-950 px-1.5 py-0.5 rounded border border-gray-800">
+                      <Badge variant="outline" className="font-mono text-[10px]">
                         {proj.terminal}
-                      </span>
+                      </Badge>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500 font-mono truncate" title={proj.path}>
-                    📂 {proj.path}
+                  <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+                    <Folder className="h-3 w-3 text-text-tertiary flex-shrink-0" />
+                    <span className="font-mono truncate" title={proj.path}>
+                      {proj.path}
+                    </span>
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <p className="text-xs text-text-tertiary">
                     Default profile:{" "}
                     {defaultProfile ? (
-                      <span className="text-gray-300 font-medium">
+                      <span className="text-text-secondary font-medium">
                         {defaultProfile.label} ({defaultProfile.vendor})
                       </span>
                     ) : (
-                      <span className="text-gray-600 italic">None assigned (uses first available)</span>
+                      <span className="italic text-text-tertiary">
+                        None assigned (uses first available)
+                      </span>
                     )}
-                  </div>
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  {/* Auto-Switch Policy Toggle (AC-10: Only rendered when master flag is true) */}
+                {/* Actions */}
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  {/* Auto-switch toggle using Radix Switch */}
                   {flags.auto_switch && (
-                    <div className="text-right" title={autoSwitchTooltip}>
-                      <label className="text-[11px] text-gray-400 block mb-1">
+                    <div
+                      className="flex flex-col items-end gap-1"
+                      title={autoSwitchTooltip}
+                    >
+                      <label className="text-[10px] text-text-tertiary">
                         Auto-switch
                       </label>
-                      <button
-                        type="button"
+                      <Switch
+                        checked={proj.auto_switch_enabled === 1 && !autoSwitchDisabled}
                         disabled={autoSwitchDisabled}
-                        onClick={() => handleToggleAutoSwitch(proj)}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                          proj.auto_switch_enabled && !autoSwitchDisabled
-                            ? "bg-gravity-600"
-                            : "bg-gray-800"
-                        } ${autoSwitchDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
-                      >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                            proj.auto_switch_enabled && !autoSwitchDisabled
-                              ? "translate-x-4"
-                              : "translate-x-1"
-                          }`}
-                        />
-                      </button>
+                        onCheckedChange={() => handleToggleAutoSwitch(proj)}
+                      />
                     </div>
                   )}
 
-                  {/* Launch button */}
-                  <button
+                  <Button
                     onClick={() => handleLaunchProject(proj)}
                     disabled={launchingId === proj.id}
-                    className="px-3 py-2 bg-gravity-600 hover:bg-gravity-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    size="sm"
+                    className="flex items-center gap-1.5"
                   >
-                    {launchingId === proj.id ? "Launching…" : "🚀 Launch"}
-                  </button>
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                    <span>{launchingId === proj.id ? "Launching…" : "Launch"}</span>
+                  </Button>
 
-                  {/* Delete button */}
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => handleDeleteProject(proj.id, proj.name)}
-                    className="text-gray-600 hover:text-red-400 text-xs p-1"
+                    className="h-8 w-8 text-text-tertiary hover:text-red-400"
                     title="Unregister project"
                   >
-                    ✕
-                  </button>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* Register Project Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-lg font-bold mb-4">Register Project Folder</h3>
+      {/* Radix Dialog: Register Project Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Register Project Folder</DialogTitle>
+          </DialogHeader>
 
-            <form onSubmit={handleCreateProject} className="space-y-4">
+          <form onSubmit={handleCreateProject} className="space-y-4">
+            <div>
+              <label className="form-label">Folder Path *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. C:\project\MyRepo"
+                value={path}
+                onChange={(e) => {
+                  setPath(e.target.value);
+                  if (!name.trim()) {
+                    const segments = e.target.value
+                      .replace(/\\/g, "/")
+                      .split("/");
+                    const inferred =
+                      segments[segments.length - 1] ||
+                      segments[segments.length - 2];
+                    if (inferred) setName(inferred);
+                  }
+                }}
+                className="input input-mono"
+              />
+            </div>
+
+            <div>
+              <label className="form-label">Project Name (Optional)</label>
+              <input
+                type="text"
+                placeholder="Auto-inferred from folder name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="input"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1">
-                  Folder Path *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. C:\project\MyRepo"
-                  value={path}
-                  onChange={(e) => {
-                    setPath(e.target.value);
-                    if (!name.trim()) {
-                      const segments = e.target.value.replace(/\\/g, "/").split("/");
-                      const inferred = segments[segments.length - 1] || segments[segments.length - 2];
-                      if (inferred) setName(inferred);
-                    }
-                  }}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-gravity-500 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1">
-                  Project Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Auto-inferred from folder name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-gravity-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
-                    Isolation Tag
-                  </label>
-                  <select
-                    value={tag}
-                    onChange={(e) => setTag(e.target.value as "personal" | "work" | "client")}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-gravity-500"
-                  >
-                    <option value="personal">Personal</option>
-                    <option value="work">Work</option>
-                    <option value="client">Client (Strict)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
-                    Terminal
-                  </label>
-                  <select
-                    value={terminal}
-                    onChange={(e) => setTerminal(e.target.value)}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-gravity-500"
-                  >
-                    <option value="auto">Auto (WT / PS)</option>
-                    <option value="wt">Windows Terminal</option>
-                    <option value="powershell">PowerShell</option>
-                    <option value="wsl" disabled>WSL (WSL support planned)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1">
-                  Default Profile
-                </label>
+                <label className="form-label">Isolation Tag</label>
                 <select
-                  value={defaultProfileId}
-                  onChange={(e) => setDefaultProfileId(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-gravity-500"
+                  value={tag}
+                  onChange={(e) =>
+                    setTag(e.target.value as "personal" | "work" | "client")
+                  }
+                  className="input"
                 >
-                  <option value="">None (Use first available)</option>
-                  {profiles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label} ({p.vendor} · {p.tag})
-                    </option>
-                  ))}
+                  <option value="personal">Personal</option>
+                  <option value="work">Work</option>
+                  <option value="client">Client (Strict)</option>
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-gray-800">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-lg"
+              <div>
+                <label className="form-label">Terminal</label>
+                <select
+                  value={terminal}
+                  onChange={(e) => setTerminal(e.target.value)}
+                  className="input"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !path.trim()}
-                  className="px-4 py-2 bg-gravity-600 hover:bg-gravity-500 text-white text-sm font-medium rounded-lg disabled:opacity-50"
-                >
-                  {submitting ? "Registering…" : "Register Project"}
-                </button>
+                  <option value="auto">Auto (WT / PS)</option>
+                  <option value="wt">Windows Terminal</option>
+                  <option value="powershell">PowerShell</option>
+                  <option value="wsl" disabled>
+                    WSL (planned)
+                  </option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+
+            <div>
+              <label className="form-label">Default Profile</label>
+              <select
+                value={defaultProfileId}
+                onChange={(e) => setDefaultProfileId(e.target.value)}
+                className="input"
+              >
+                <option value="">None (Use first available)</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} ({p.vendor} · {p.tag})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-border-subtle">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submitting || !path.trim()}
+              >
+                {submitting ? "Registering…" : "Register Project"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

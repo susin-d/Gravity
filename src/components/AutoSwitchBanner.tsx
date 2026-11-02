@@ -1,3 +1,7 @@
+import { motion } from "framer-motion";
+import { Zap, RotateCcw, XCircle } from "lucide-react";
+import { Button } from "./ui/button";
+
 export interface AutoSwitchBannerProps {
   flagsEnabled: boolean;
   projectAutoSwitchEnabled: boolean;
@@ -27,25 +31,32 @@ export default function AutoSwitchBanner({
   }
 
   return (
-    <div className="bg-gravity-950/80 border border-gravity-700/80 rounded-xl p-3.5 mb-5 shadow-lg flex items-center justify-between animate-fade-in">
-      <div className="flex items-center gap-2.5">
-        <span className="text-base animate-pulse">⚡</span>
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="bg-surface-2 border border-gravity-600/50 rounded-xl p-3.5 mb-5 shadow-lg flex items-center justify-between"
+    >
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-gravity-600/20 text-gravity-300 border border-gravity-600/30 flex-shrink-0">
+          <Zap className="h-4 w-4 animate-pulse" />
+        </div>
         <div>
           {lastSwitchedEvent ? (
-            <p className="text-xs text-gravity-200">
-              <strong className="text-white font-semibold">Auto-switched:</strong> Now using{" "}
-              <span className="text-gravity-400 font-bold">{lastSwitchedEvent.toProfileName}</span> (switched from{" "}
+            <p className="text-xs text-text-primary">
+              <strong className="font-semibold text-white">Auto-switched:</strong> Now using{" "}
+              <span className="text-gravity-300 font-bold">{lastSwitchedEvent.toProfileName}</span> (switched from{" "}
               {lastSwitchedEvent.fromProfileName} at{" "}
               {new Date(lastSwitchedEvent.switchedAt).toLocaleTimeString()}).
             </p>
           ) : (
-            <p className="text-xs text-gravity-200">
-              <strong className="text-white font-semibold">Auto-switch armed:</strong> Will switch to{" "}
-              <span className="text-gravity-400 font-bold">{armedTargetProfileName || "MRU non-client profile"}</span>{" "}
+            <p className="text-xs text-text-primary">
+              <strong className="font-semibold text-white">Auto-switch armed:</strong> Will switch to{" "}
+              <span className="text-gravity-300 font-bold">{armedTargetProfileName || "MRU non-client profile"}</span>{" "}
               if a rate limit is reached.
             </p>
           )}
-          <p className="text-[10px] text-gray-500 mt-0.5">
+          <p className="text-[10px] text-text-tertiary mt-0.5">
             Client accounts are strictly protected from automated switching.
           </p>
         </div>
@@ -53,23 +64,29 @@ export default function AutoSwitchBanner({
 
       <div className="flex items-center gap-2">
         {lastSwitchedEvent && onSwitchBack && (
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={onSwitchBack}
-            className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded-lg transition-colors"
+            className="flex items-center gap-1.5"
           >
-            Switch back
-          </button>
+            <RotateCcw className="h-3 w-3" />
+            <span>Switch back</span>
+          </Button>
         )}
-        <button
+        <Button
           type="button"
+          variant="destructive"
+          size="sm"
           onClick={onDisable}
-          className="px-3 py-1 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 text-xs rounded-lg transition-colors"
+          className="flex items-center gap-1.5"
           title="Disable auto-switch for this project"
         >
-          Disable
-        </button>
+          <XCircle className="h-3 w-3" />
+          <span>Disable</span>
+        </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

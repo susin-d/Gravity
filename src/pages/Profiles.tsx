@@ -1,8 +1,27 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { motion } from "framer-motion";
+import {
+  Folder,
+  Terminal,
+  AlertTriangle,
+  X,
+  Zap,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import UsageBadge, { UsageReading } from "../components/UsageBadge";
 import LimitToast from "../components/LimitToast";
 import ClientBoundaryModal from "../components/ClientBoundaryModal";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../components/ui/dialog";
 
 export interface Profile {
   id: string;
@@ -26,10 +45,7 @@ export interface Session {
 }
 
 interface SwitchExecutionResult {
-  switch_event: {
-    id: string;
-    outcome: string;
-  };
+  switch_event: { id: string; outcome: string };
   new_session?: Session;
   requires_client_confirmation: boolean;
   confirmation_message?: string;
@@ -55,7 +71,7 @@ export default function Profiles() {
   const [launchingId, setLaunchingId] = useState<string | null>(null);
   const [refreshingUsageId, setRefreshingUsageId] = useState<string | null>(null);
 
-  // M5: Rate limit toast & client modal simulation states
+  // M5 states
   const [activeToast, setActiveToast] = useState<{
     fromProfile: Profile;
     suggestedProfile: Profile | null;
@@ -95,7 +111,6 @@ export default function Profiles() {
   const handleCreateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!label.trim()) return;
-
     try {
       setSubmitting(true);
       await invoke("create_profile", {
@@ -106,7 +121,6 @@ export default function Profiles() {
           secret: secret.trim() ? secret.trim() : null,
         },
       });
-
       setLabel("");
       setSecret("");
       setTag("personal");
@@ -149,13 +163,12 @@ export default function Profiles() {
     }
   };
 
-  // M5: Trigger rate limit simulation and fetch MRU suggestion
   const handleSimulateLimit = async (fromProfile: Profile) => {
     try {
-      const suggestion = await invoke<Profile | null>("suggest_fallback_profile", {
-        fromProfileId: fromProfile.id,
-      });
-
+      const suggestion = await invoke<Profile | null>(
+        "suggest_fallback_profile",
+        { fromProfileId: fromProfile.id }
+      );
       setActiveToast({
         fromProfile,
         suggestedProfile: suggestion,
@@ -166,18 +179,14 @@ export default function Profiles() {
     }
   };
 
-  // M5: Handle clicking Continue from Limit Toast
   const handleContinueSwitch = async (targetProfile: Profile) => {
     if (!activeToast) return;
     const fromProfile = activeToast.fromProfile;
-
-    // Check client boundary
     if (fromProfile.tag === "client" || targetProfile.tag === "client") {
       setClientBoundaryPrompt({ fromProfile, targetProfile });
       setActiveToast(null);
       return;
     }
-
     try {
       await invoke<SwitchExecutionResult>("execute_profile_switch", {
         sessionId: null,
@@ -194,11 +203,9 @@ export default function Profiles() {
     }
   };
 
-  // M5: Confirm client boundary modal
   const handleConfirmClientModal = async () => {
     if (!clientBoundaryPrompt) return;
     const { fromProfile, targetProfile } = clientBoundaryPrompt;
-
     try {
       await invoke<SwitchExecutionResult>("execute_profile_switch", {
         sessionId: null,
@@ -215,11 +222,9 @@ export default function Profiles() {
     }
   };
 
-  // M5: Cancel client boundary modal (AC-07)
   const handleCancelClientModal = async () => {
     if (!clientBoundaryPrompt) return;
     const { fromProfile, targetProfile } = clientBoundaryPrompt;
-
     try {
       await invoke("record_switch_cancellation", {
         sessionId: null,
@@ -235,8 +240,10 @@ export default function Profiles() {
     }
   };
 
-  // Quick simulation helper to test tri-state readings (AC-08 & AC-09)
-  const handleSimulateUsage = async (profileId: string, state: "official" | "estimated" | "unknown") => {
+  const handleSimulateUsage = async (
+    profileId: string,
+    state: "official" | "estimated" | "unknown"
+  ) => {
     try {
       setRefreshingUsageId(profileId);
       let payload;
@@ -275,7 +282,6 @@ export default function Profiles() {
           detail: "CLI version does not support automated telemetry.",
         };
       }
-
       await invoke("record_usage", { input: payload });
       await loadData();
     } catch (err) {
@@ -286,98 +292,117 @@ export default function Profiles() {
   };
 
   return (
-    <div className="p-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6 max-w-5xl space-y-6">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold">Profiles</h2>
-          <p className="text-xs text-gray-500 mt-1">
-            Isolated environments with separate config directories and Windows Job Object boundaries.
+          <h2 className="text-lg font-semibold text-text-primary">Profiles</h2>
+          <p className="text-xs text-text-tertiary mt-0.5">
+            Isolated environments with separate config directories and Job Object boundaries.
           </p>
         </div>
-        <button
+        <Button
           onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-gravity-600 hover:bg-gravity-500 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          size="sm"
+          className="flex items-center gap-1.5"
         >
-          + Add Profile
-        </button>
+          <Plus className="h-3.5 w-3.5" />
+          <span>Add Profile</span>
+        </Button>
       </div>
 
+      {/* WT warning */}
       {!wtAvailable && (
-        <div className="bg-yellow-900/30 border border-yellow-700 text-yellow-300 text-xs rounded-lg p-3 mb-4">
-          ⚠️ Windows Terminal (<code>wt.exe</code>) was not detected. Sessions will fall back to standalone PowerShell.
+        <div className="flex items-center gap-2.5 bg-surface-1 border border-amber-800/40 text-amber-300 text-xs rounded-xl p-3">
+          <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+          <span>
+            <code className="font-mono text-text-primary">wt.exe</code> was not detected — sessions will fall back to standalone PowerShell.
+          </span>
         </div>
       )}
 
+      {/* Error banner */}
       {error && (
-        <div className="bg-red-900/30 border border-red-700 text-red-300 text-xs rounded-lg p-3 mb-4 flex justify-between items-center">
+        <div className="flex items-center justify-between bg-red-950/30 border border-red-800/60 text-red-300 text-xs rounded-xl p-3">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-200">✕</button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setError(null)}
+            className="h-6 w-6 text-red-400 hover:text-red-200"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
         </div>
       )}
 
-      {/* Profiles Grid */}
+      {/* Profile grid */}
       {loading ? (
-        <p className="text-sm text-gray-500 animate-pulse">Loading profiles…</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[0, 1].map((i) => (
+            <div key={i} className="card p-5 space-y-3">
+              <div className="skeleton h-4 w-32 rounded" />
+              <div className="skeleton h-3 w-24 rounded" />
+              <div className="skeleton h-12 w-full rounded" />
+            </div>
+          ))}
+        </div>
       ) : profiles.length === 0 ? (
-        <div className="border border-dashed border-gray-800 rounded-xl p-12 text-center">
-          <p className="text-gray-400 text-sm">No profiles created yet.</p>
-          <p className="text-gray-600 text-xs mt-1">
+        <div className="empty-state">
+          <p className="text-text-secondary text-sm font-medium">No profiles created yet</p>
+          <p className="text-text-tertiary text-xs mt-1">
             Create an isolated Claude Code or Codex profile to get started.
           </p>
-          <button
+          <Button
             onClick={() => setShowModal(true)}
-            className="mt-4 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded-md"
+            variant="secondary"
+            size="sm"
+            className="mt-4"
           >
             Create your first profile
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {profiles.map((p) => {
-            const isClaude = p.vendor === "claude";
-            const tagColors = {
-              personal: "bg-blue-900/50 text-blue-300 border-blue-800",
-              work: "bg-purple-900/50 text-purple-300 border-purple-800",
-              client: "bg-amber-900/50 text-amber-300 border-amber-800",
-            }[p.tag];
-
             const usage = usages[p.id];
-
             return (
-              <div
+              <motion.div
                 key={p.id}
-                className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col justify-between hover:border-gray-700 transition-colors"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.15 }}
+                className="card p-5 flex flex-col justify-between gap-4"
               >
                 <div>
+                  {/* Card top */}
                   <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-200">{p.label}</span>
-                        <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded border ${tagColors}`}>
-                          {p.tag}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-text-primary text-sm">{p.label}</span>
+                        <Badge variant={p.tag}>{p.tag}</Badge>
+                        <Badge variant={p.vendor}>
+                          {p.vendor === "claude" ? "Claude" : "Codex"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+                        <Folder className="h-3 w-3 text-text-tertiary flex-shrink-0" />
+                        <span className="font-mono truncate max-w-[210px]" title={p.config_dir}>
+                          {p.config_dir}
                         </span>
                       </div>
-                      <span className="text-xs text-gray-500 capitalize">
-                        {isClaude ? "Claude Code" : "OpenAI Codex"}
-                      </span>
                     </div>
-
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleDeleteProfile(p.id, p.label)}
-                      className="text-gray-600 hover:text-red-400 text-xs p-1"
+                      className="h-7 w-7 text-text-tertiary hover:text-red-400"
                       title="Delete profile"
                     >
-                      Delete
-                    </button>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
 
-                  <div className="mt-3 text-xs space-y-1">
-                    <div className="text-gray-500 font-mono truncate" title={p.config_dir}>
-                      📂 <span className="text-gray-400">{p.config_dir}</span>
-                    </div>
-                  </div>
-
-                  {/* Real-time Usage Telemetry Badge (M3) */}
+                  {/* Usage telemetry */}
                   <div className="mt-4">
                     <UsageBadge
                       reading={usage}
@@ -385,32 +410,34 @@ export default function Profiles() {
                       refreshing={refreshingUsageId === p.id}
                     />
 
-                    {/* Quick state switcher for verification of AC-08 & AC-09 */}
-                    <div className="mt-2 flex items-center justify-between text-[10px] text-gray-600">
+                    {/* Debug simulation options */}
+                    <div className="mt-2.5 flex items-center justify-between text-[10px] text-text-tertiary">
                       <button
                         onClick={() => handleSimulateLimit(p)}
-                        className="text-amber-500 hover:text-amber-300 font-medium"
-                        title="Simulate rate limit hit to test M5 Limit Toast"
+                        className="flex items-center gap-1 text-amber-400/90 hover:text-amber-300 font-medium transition-colors"
+                        title="Simulate rate limit hit"
                       >
-                        ⚡ Simulate Limit Hit
+                        <Zap className="h-3 w-3" />
+                        <span>Simulate limit</span>
                       </button>
-
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleSimulateUsage(p.id, "official")}
-                          className="hover:text-emerald-400 hover:underline"
+                          className="hover:text-emerald-400 transition-colors"
                         >
                           [Official]
                         </button>
+                        <span className="text-border">·</span>
                         <button
                           onClick={() => handleSimulateUsage(p.id, "estimated")}
-                          className="hover:text-amber-400 hover:underline"
+                          className="hover:text-amber-400 transition-colors"
                         >
                           [Est]
                         </button>
+                        <span className="text-border">·</span>
                         <button
                           onClick={() => handleSimulateUsage(p.id, "unknown")}
-                          className="hover:text-gray-300 hover:underline"
+                          className="hover:text-text-secondary transition-colors"
                         >
                           [Unknown]
                         </button>
@@ -419,33 +446,35 @@ export default function Profiles() {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-gray-800 flex justify-between items-center">
-                  <span className="text-[11px] text-gray-600">
+                {/* Card footer */}
+                <div className="pt-3 border-t border-border-subtle flex items-center justify-between">
+                  <span className="text-[11px] text-text-tertiary font-mono">
                     ID: {p.id.slice(0, 8)}…
                   </span>
-                  <button
+                  <Button
                     onClick={() => handleLaunchSession(p.id)}
                     disabled={launchingId === p.id}
-                    className="px-3 py-1.5 bg-gray-800 hover:bg-gravity-600 text-gray-200 hover:text-white text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    variant="secondary"
+                    size="sm"
+                    className="flex items-center gap-1.5"
                   >
-                    {launchingId === p.id ? "Launching…" : "🚀 Launch Terminal"}
-                  </button>
+                    <Terminal className="h-3.5 w-3.5 text-text-secondary" />
+                    <span>{launchingId === p.id ? "Launching…" : "Launch Terminal"}</span>
+                  </Button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* Active Sessions Mini-Table */}
+      {/* Sessions table */}
       {sessions.length > 0 && (
-        <div className="mt-10">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Recent Sessions (Job Objects)
-          </h3>
-          <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+        <div className="mt-8">
+          <h3 className="section-heading mb-3">Recent Sessions (Job Objects)</h3>
+          <div className="card overflow-hidden">
             <table className="w-full text-left text-xs">
-              <thead className="bg-gray-800/50 text-gray-400 uppercase text-[10px]">
+              <thead className="bg-surface-1 text-text-tertiary uppercase text-[10px] tracking-wider">
                 <tr>
                   <th className="p-3">Session ID</th>
                   <th className="p-3">PID</th>
@@ -453,16 +482,16 @@ export default function Profiles() {
                   <th className="p-3">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800 font-mono">
+              <tbody className="divide-y divide-border-subtle font-mono">
                 {sessions.slice(0, 5).map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-800/30">
-                    <td className="p-3 text-gray-400">{s.id.slice(0, 12)}…</td>
-                    <td className="p-3 text-gray-300">{s.pid ?? "—"}</td>
-                    <td className="p-3 text-gray-500">{new Date(s.started_at).toLocaleTimeString()}</td>
+                  <tr key={s.id} className="hover:bg-surface-3 transition-colors">
+                    <td className="p-3 text-text-tertiary">{s.id.slice(0, 12)}…</td>
+                    <td className="p-3 text-text-secondary">{s.pid ?? "—"}</td>
+                    <td className="p-3 text-text-tertiary">
+                      {new Date(s.started_at).toLocaleTimeString()}
+                    </td>
                     <td className="p-3">
-                      <span className="px-2 py-0.5 rounded text-[10px] bg-green-900/50 text-green-400">
-                        {s.status}
-                      </span>
+                      <Badge variant="success">{s.status}</Badge>
                     </td>
                   </tr>
                 ))}
@@ -472,7 +501,7 @@ export default function Profiles() {
         </div>
       )}
 
-      {/* M5: Limit Toast Notification */}
+      {/* M5 Overlays */}
       {activeToast && (
         <LimitToast
           fromProfile={activeToast.fromProfile}
@@ -484,7 +513,6 @@ export default function Profiles() {
         />
       )}
 
-      {/* M5: Client Boundary Confirmation Modal (AC-07) */}
       {clientBoundaryPrompt && (
         <ClientBoundaryModal
           targetProfile={clientBoundaryPrompt.targetProfile}
@@ -494,94 +522,87 @@ export default function Profiles() {
         />
       )}
 
-      {/* Create Profile Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-lg font-bold mb-4">Create Isolated Profile</h3>
+      {/* Radix Dialog: Create Profile Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Isolated Profile</DialogTitle>
+          </DialogHeader>
 
-            <form onSubmit={handleCreateProfile} className="space-y-4">
+          <form onSubmit={handleCreateProfile} className="space-y-4">
+            <div>
+              <label className="form-label">Profile Label *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Work, Personal, Acme Corp"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                className="input"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1">
-                  Profile Label *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Work, Personal, Acme Corp"
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-gravity-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
-                    Vendor
-                  </label>
-                  <select
-                    value={vendor}
-                    onChange={(e) => setVendor(e.target.value as "claude" | "codex")}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-gravity-500"
-                  >
-                    <option value="claude">Claude Code</option>
-                    <option value="codex">OpenAI Codex</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">
-                    Tag / Boundary
-                  </label>
-                  <select
-                    value={tag}
-                    onChange={(e) => setTag(e.target.value as "personal" | "work" | "client")}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-gravity-500"
-                  >
-                    <option value="personal">Personal</option>
-                    <option value="work">Work</option>
-                    <option value="client">Client (Guarded)</option>
-                  </select>
-                </div>
+                <label className="form-label">Vendor</label>
+                <select
+                  value={vendor}
+                  onChange={(e) => setVendor(e.target.value as "claude" | "codex")}
+                  className="input"
+                >
+                  <option value="claude">Claude Code</option>
+                  <option value="codex">OpenAI Codex</option>
+                </select>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1">
-                  API Key / Token (Optional)
-                </label>
-                <input
-                  type="password"
-                  placeholder="Stored in Windows Credential Manager"
-                  value={secret}
-                  onChange={(e) => setSecret(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-gravity-500 font-mono"
-                />
-                <p className="text-[11px] text-gray-500 mt-1">
-                  Leave blank if you prefer logging in via CLI browser OAuth.
-                </p>
+                <label className="form-label">Tag / Boundary</label>
+                <select
+                  value={tag}
+                  onChange={(e) => setTag(e.target.value as "personal" | "work" | "client")}
+                  className="input"
+                >
+                  <option value="personal">Personal</option>
+                  <option value="work">Work</option>
+                  <option value="client">Client (Guarded)</option>
+                </select>
               </div>
+            </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-gray-800">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !label.trim()}
-                  className="px-4 py-2 bg-gravity-600 hover:bg-gravity-500 text-white text-sm font-medium rounded-lg disabled:opacity-50"
-                >
-                  {submitting ? "Creating…" : "Create Profile"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div>
+              <label className="form-label">API Key / Token (Optional)</label>
+              <input
+                type="password"
+                placeholder="Stored in Windows Credential Manager"
+                value={secret}
+                onChange={(e) => setSecret(e.target.value)}
+                className="input input-mono"
+              />
+              <p className="text-[11px] text-text-tertiary mt-1">
+                Leave blank if you prefer logging in via CLI browser OAuth.
+              </p>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-border-subtle">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submitting || !label.trim()}
+              >
+                {submitting ? "Creating…" : "Create Profile"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

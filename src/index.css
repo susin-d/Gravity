@@ -1,18 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-gray-950 text-gray-100 antialiased;
-    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  *, *::before, *::after {
+    box-sizing: border-box;
   }
 
-  /* Prevent text selection on double-click for app-like feel */
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-surface-0 text-text-primary font-sans;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  /* Unified scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+
+  /* Text selection */
+  ::selection {
+    background: rgba(99, 102, 241, 0.3);
+    color: #f4f4f5;
+  }
+
+  /* Custom caret */
+  input, textarea {
+    caret-color: #818cf8;
+  }
+
   [data-tauri-drag-region] {
-    user-select: none;
     -webkit-user-select: none;
+    user-select: none;
+    cursor: default;
+  }
+}
+
+@layer components {
+  /* ── Buttons ── */
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded font-medium transition-colors
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gravity-400
+           disabled:pointer-events-none disabled:opacity-40;
+    font-size: 0.8125rem;
+    line-height: 1;
+    padding: 0.45rem 0.875rem;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    @apply btn bg-gravity-600 text-white hover:bg-gravity-500 active:bg-gravity-700;
+  }
+
+  .btn-secondary {
+    @apply btn bg-surface-4 text-text-primary hover:bg-border-strong border border-border-subtle;
+  }
+
+  .btn-ghost {
+    @apply btn text-text-secondary hover:text-text-primary hover:bg-surface-4;
+    padding: 0.35rem 0.625rem;
+  }
+
+  .btn-danger {
+    @apply btn text-red-400 hover:text-red-300 hover:bg-red-950/30;
+    padding: 0.35rem 0.625rem;
+  }
+
+  .btn-sm {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  /* ── Inputs ── */
+  .input {
+    @apply w-full rounded border border-border-subtle bg-surface-0 px-3 py-2
+           text-sm text-text-primary placeholder-text-tertiary
+           transition-colors
+           focus:outline-none focus:border-gravity-500 focus:ring-1 focus:ring-gravity-500/30;
+  }
+
+  .input-mono {
+    @apply input font-mono text-xs;
+  }
+
+  select.input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2371717a' viewBox='0 0 16 16'%3E%3Cpath d='M8 10.5 3.5 6h9L8 10.5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 2rem;
+  }
+
+  /* ── Cards ── */
+  .card {
+    @apply rounded-lg border border-border-subtle bg-surface-2;
+  }
+
+  .card-hover {
+    @apply card transition-colors hover:border-border-DEFAULT hover:bg-surface-3;
+  }
+
+  /* ── Tags ── */
+  .tag {
+    @apply inline-flex items-center rounded px-1.5 py-0.5 font-mono font-medium;
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .tag-personal { @apply tag bg-blue-950/60  text-blue-300  ring-1 ring-blue-800/50; }
+  .tag-work     { @apply tag bg-violet-950/60 text-violet-300 ring-1 ring-violet-800/50; }
+  .tag-client   { @apply tag bg-amber-950/60  text-amber-300  ring-1 ring-amber-800/50; }
+  .tag-claude   { @apply tag bg-orange-950/60 text-orange-300  ring-1 ring-orange-800/50; }
+  .tag-codex    { @apply tag bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-800/50; }
+
+  /* ── Status badges ── */
+  .badge-success  { @apply tag bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-800/50; }
+  .badge-warning  { @apply tag bg-amber-950/60  text-amber-300  ring-1 ring-amber-800/50; }
+  .badge-danger   { @apply tag bg-red-950/60    text-red-300    ring-1 ring-red-800/50; }
+  .badge-neutral  { @apply tag bg-surface-4     text-text-tertiary ring-1 ring-border-subtle; }
+  .badge-info     { @apply tag bg-blue-950/60   text-blue-300   ring-1 ring-blue-800/50; }
+
+  /* ── Section heading ── */
+  .section-heading {
+    @apply text-2xs font-semibold uppercase tracking-widest text-text-tertiary;
+    letter-spacing: 0.09em;
+  }
+
+  /* ── Skeleton ── */
+  .skeleton {
+    background: linear-gradient(90deg, #1c1c22 25%, #242429 50%, #1c1c22 75%);
+    background-size: 200% 100%;
+    @apply rounded animate-shimmer;
+  }
+
+  /* ── Divider ── */
+  .divider { @apply border-t border-border-subtle; }
+
+  /* ── Form label ── */
+  .form-label {
+    @apply block text-xs font-medium text-text-secondary mb-1;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    @apply flex flex-col items-center justify-center rounded-lg border border-dashed
+           border-border-subtle py-16 text-center;
   }
 }
