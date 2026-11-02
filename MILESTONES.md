@@ -1,7 +1,7 @@
 # Gravity — Milestones, Deliverables & Feature Roadmap
 
 > **Project:** Gravity  
-> **Status:** Active Implementation (M0, M1, M2, M3 Complete)  
+> **Status:** Active Implementation (M0, M1, M2, M3, M4 Complete)  
 > **Target OS:** Windows 10/11 (Native Win32 + Tauri 2)
 
 ---
@@ -14,8 +14,8 @@
 | **M1** | Profiles, Isolation & Process Engine | ✅ Complete | v0.1 | DPAPI Credential Storage, Clean Env Block, Job Objects, Terminal Spawner |
 | **M2** | Project Registry & Tagging | ✅ Complete | v0.1 | Directory Registry, `personal` / `work` / `client` Tags, Policy Storage |
 | **M3** | Honest Telemetry & Badges | ✅ Complete | v0.1 | Tri-state Usage (`official`/`estimated`/`unknown`), No fake UI, Reset Timers |
-| **M4** | Provider Adapters & Fixtures | 🔄 Next | v0.1 | Claude Code & Codex Output Parsers, <1s Rate Limit Detection, Fixture Suite |
-| **M5** | Limit Toast, Session Switch & Modal | 📋 Planned | v0.1 | Non-blocking Toast, MRU Fallback Engine, Client Boundary Consent Modal |
+| **M4** | Provider Adapters & Fixtures | ✅ Complete | v0.1 | Claude Code & Codex Output Parsers, <1s Rate Limit Detection, Fixture Suite |
+| **M5** | Limit Toast, Session Switch & Modal | 🔄 Next | v0.1 | Non-blocking Toast, MRU Fallback Engine, Client Boundary Consent Modal |
 | **M6** | Auto-Switch Policy Engine | 📋 Planned | v0.1 | `flags.toml` Gated Engine, Client Boundary Lockout, Auto-Switch Banners |
 | **M7** | Audit History & Final Polish | 📋 Planned | v0.1 | Filterable Timeline, Adapter Health Monitor, Long Path Support (`\\?\`) |
 | **v0.2+**| Extended Ecosystem (Backlog) | 💡 Backlog | v0.2+ | WSL Bridge, Headless CLI, Global Hotkeys, Custom Terminals |
@@ -83,16 +83,18 @@
 ---
 
 ### [M4] Provider Adapters (Claude Code + OpenAI Codex) & Test Fixtures
-- [ ] **`ProviderAdapter` Trait:**
-  - Async methods: `read_usage()`, `detect_limit(line, exit_code)`, `health()`.
-- [ ] **Claude Code Adapter (`adapters/claude.rs`):**
-  - Parse CLI outputs, exit codes, and config files.
-  - Sub-second rate limit detection on stdout patterns (429, quota exhaustion, token limits).
-- [ ] **OpenAI Codex Adapter (`adapters/codex.rs`):**
-  - Codex stderr/stdout format parsing and error code mapping.
-- [ ] **Deterministic Test Fixtures:**
-  - `fixtures/claude_limit.txt` and `fixtures/codex_limit.txt`.
-  - Integration tests verifying detection occurs in $< 1000\text{ms}$.
+- [x] **`ProviderAdapter` Trait:**
+  - Async/sync methods: `detect_limit(line, exit_code)`, `read_usage(profile)`, `health()`.
+- [x] **Claude Code Adapter (`adapters/claude.rs`):**
+  - Parses CLI output patterns: 429, quota exhaustion, token limits, credit balance exhaustion.
+  - Sub-second rate limit detection ($< 1000\text{ms}$) verified against `fixtures/claude_limit.txt` (AC-04).
+- [x] **OpenAI Codex Adapter (`adapters/codex.rs`):**
+  - Codex stderr/stdout format parsing and error code mapping (`rate_limit_exceeded`, `insufficient_quota`).
+  - Sub-second rate limit detection ($< 1000\text{ms}$) verified against `fixtures/codex_limit.txt`.
+- [x] **Deterministic Test Fixtures:**
+  - `fixtures/claude_limit.txt`, `fixtures/claude_usage.json`, `fixtures/codex_limit.txt`, `fixtures/codex_usage.json`.
+- [x] **Adapter Health Dashboard (`AdapterHealth.tsx`):**
+  - Visual status indicators and live stream line evaluator for interactive heuristic testing.
 
 ---
 

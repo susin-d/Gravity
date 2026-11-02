@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 use tracing::info;
 
+use crate::adapters::{self, AdapterHealth, DetectionResult, LimitEvent};
 use crate::flags::FeatureFlags;
 use crate::process::{self, Session, SpawnOptions};
 use crate::profiles::{self, CreateProfileInput, Profile};
@@ -160,6 +161,53 @@ pub async fn record_usage(
     input: RecordUsageInput,
 ) -> Result<UsageReading, String> {
     usage::record_usage(state.db.pool(), input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ==========================================
+// Provider Adapters & Limit Detection (M4)
+// ==========================================
+
+/// Health report returned for all provider adapters.
+#[derive(Serialize)]
+pub struct AdaptersHealthReport {
+    pub claude: AdapterHealth,
+    pub codex: AdapterHealth,
+}
+
+/// Tauri command: report health of Claude and Codex adapters.
+#[tauri::command]
+pub fn check_adapters_health() -> Result<AdaptersHealthReport, String> {
+    let claude = adapters::claude::ClaudeAdapter::new();
+    let codex = adapters::codex::CodexAdapter::new();
+
+    Ok(AdaptersHealthReport {
+        claude: adapters::ProviderAdapter::health(&claude),
+        codex: adapters::ProviderAdapter::health(&codex),
+    })
+}
+
+/// Tauri command: inspect a line of output for rate limits.
+#[tauri::command]
+pub fn detect_line_limit(
+    vendor: String,
+    line: String,
+    exit_code: Option<i32>,
+) -> Result<Option<DetectionResult>, String> {
+    let adapter = adapters::get_adapter_for_vendor(&vendor)
+        .ok_or_else(|| format!("Unknown vendor: {}", vendor))?;
+
+    Ok(adapter.detect_limit(&line, exit_code))
+}
+
+/// Tauri command: list recorded rate limit events.
+#[tauri::command]
+pub async fn list_limit_events(
+    state: State<'_, Arc<AppState>>,
+    limit: Option<i64>,
+) -> Result<Vec<LimitEvent>, String> {
+    adapters::list_limit_events(state.db.pool(), limit.unwrap_or(50))
         .await
         .map_err(|e| e.to_string())
 }

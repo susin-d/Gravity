@@ -1,0 +1,4 @@
+Error: You have exceeded your current quota or usage limit.
+Rate limit reached: 429 Too Many Requests.
+Your limit will reset at 2026-11-03T02:00:00Z.
+Please wait before sending more requests or upgrade your plan.
