@@ -2,11 +2,12 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Settings from "./pages/Settings";
 import Profiles from "./pages/Profiles";
+import Projects from "./pages/Projects";
 
 type Page = "settings" | "profiles" | "projects" | "history";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("settings");
+  const [currentPage, setCurrentPage] = useState<Page>("projects");
   const [appVersion, setAppVersion] = useState<string>("");
 
   const handleGetVersion = async () => {
@@ -38,9 +39,9 @@ function App() {
 
         <div className="flex-1 py-2">
           <NavItem
-            label="Settings"
-            active={currentPage === "settings"}
-            onClick={() => setCurrentPage("settings")}
+            label="Projects"
+            active={currentPage === "projects"}
+            onClick={() => setCurrentPage("projects")}
           />
           <NavItem
             label="Profiles"
@@ -48,10 +49,9 @@ function App() {
             onClick={() => setCurrentPage("profiles")}
           />
           <NavItem
-            label="Projects"
-            active={currentPage === "projects"}
-            onClick={() => setCurrentPage("projects")}
-            disabled
+            label="Settings"
+            active={currentPage === "settings"}
+            onClick={() => setCurrentPage("settings")}
           />
           <NavItem
             label="History"
@@ -62,17 +62,15 @@ function App() {
         </div>
 
         <div className="p-3 border-t border-gray-800 text-xs text-gray-600">
-          M0 — Skeleton
+          M2 — Projects & Tags
         </div>
       </nav>
 
       {/* Main content */}
       <main className="flex-1 overflow-auto">
-        {currentPage === "settings" && <Settings />}
+        {currentPage === "projects" && <Projects />}
         {currentPage === "profiles" && <Profiles />}
-        {currentPage === "projects" && (
-          <Placeholder title="Projects" milestone="M2" />
-        )}
+        {currentPage === "settings" && <Settings />}
         {currentPage === "history" && (
           <Placeholder title="History" milestone="M7" />
         )}

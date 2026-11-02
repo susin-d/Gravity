@@ -3,6 +3,7 @@ pub mod db;
 pub mod flags;
 pub mod process;
 pub mod profiles;
+pub mod projects;
 pub mod single_instance;
 
 use std::path::PathBuf;
@@ -91,6 +92,11 @@ pub fn run() {
             commands::spawn_session,
             commands::list_sessions,
             commands::check_terminal_available,
+            commands::create_project,
+            commands::list_projects,
+            commands::update_project,
+            commands::set_project_auto_switch,
+            commands::delete_project,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Gravity");
