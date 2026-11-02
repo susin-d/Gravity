@@ -5,7 +5,7 @@ import Titlebar from "./components/layout/Titlebar";
 import ActivityRail, { NavTab } from "./components/layout/ActivityRail";
 import SecondarySidebar from "./components/layout/SecondarySidebar";
 import WorkspaceView from "./pages/WorkspaceView";
-import Projects, { Project } from "./pages/Projects";
+import { Project } from "./types/project";
 import Profiles, { Profile, Session } from "./pages/Profiles";
 import AdapterHealth from "./pages/AdapterHealth";
 import AutoSwitchConsent from "./pages/AutoSwitchConsent";
@@ -100,9 +100,6 @@ export default function App() {
       if (key === "n") {
         e.preventDefault();
         navigateTo("workspace");
-      } else if (key === "p") {
-        e.preventDefault();
-        navigateTo("projects");
       } else if (key === "b") {
         e.preventDefault();
         setSidebarOpen((prev) => !prev);
@@ -200,7 +197,6 @@ export default function App() {
           onSelectAdapter={setSelectedAdapter}
           onSelectSettingsSection={setSelectedSettingsSection}
           onNewSession={() => navigateTo("workspace")}
-          onOpenCreateProject={() => navigateTo("projects")}
         />
 
         {/* Center Main Workspace */}
@@ -222,20 +218,9 @@ export default function App() {
                   usageReading={currentUsage}
                   activeSessions={activeSessions}
                   onSelectProfile={setActiveProfileId}
-                  onOpenCreateProject={() => navigateTo("projects")}
-                  onSelectProjectName={() => navigateTo("projects")}
                   onSessionSpawned={(session) => {
                     setActiveSessions((prev) => [session, ...prev]);
                     refreshData();
-                  }}
-                />
-              )}
-              {activeTab === "projects" && (
-                <Projects
-                  selectedProjectId={activeProjectId}
-                  onSelectProject={(id) => {
-                    setActiveProjectId(id);
-                    navigateTo("workspace");
                   }}
                 />
               )}

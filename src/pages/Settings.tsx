@@ -81,16 +81,31 @@ export default function Settings({ selectedSection }: SettingsProps = {}) {
             title="Feature Flags"
             selected={selectedSection === "flags"}
           >
-            <div className="flex items-center justify-between py-1">
-              <div>
-                <p className="text-sm font-medium text-white">Auto-switch</p>
-                <p className="text-xs text-ink-low mt-0.5">
-                  Automated profile switching on rate-limit hit. Edit{" "}
-                  <code className="font-mono text-ink-mid">flags.toml</code> to change.
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-edge-subtle bg-white/[0.025] px-3.5 py-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-white">Auto-switch</p>
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      settings.flags.auto_switch ? "bg-emerald-400" : "bg-ink-low"
+                    }`}
+                    aria-hidden="true"
+                  />
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-ink-low">
+                  Profile switching after a verified rate limit. Availability is controlled in{" "}
+                  <code className="font-mono text-ink-mid">flags.toml</code>.
                 </p>
               </div>
-              <span className={settings.flags.auto_switch ? "badge-success" : "badge-neutral"}>
-                {settings.flags.auto_switch ? "enabled" : "disabled"}
+              <span
+                className={`shrink-0 rounded-md px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider ${
+                  settings.flags.auto_switch
+                    ? "border border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                    : "border border-edge-subtle bg-glass-2 text-ink-low"
+                }`}
+                role="status"
+              >
+                {settings.flags.auto_switch ? "Enabled" : "Disabled"}
               </span>
             </div>
           </SettingsSection>

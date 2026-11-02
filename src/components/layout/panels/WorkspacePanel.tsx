@@ -6,7 +6,7 @@ import {
   ChevronDown,
   Sparkles,
 } from "lucide-react";
-import { Project } from "../../../pages/Projects";
+import { Project } from "../../../types/project";
 import { Profile } from "../../../pages/Profiles";
 
 interface WorkspacePanelProps {
@@ -17,7 +17,6 @@ interface WorkspacePanelProps {
   onSelectProject: (id: string) => void;
   onSelectProfile: (id: string) => void;
   onNewSession: () => void;
-  onOpenCreateProject?: () => void;
 }
 
 export default function WorkspacePanel({
@@ -28,7 +27,6 @@ export default function WorkspacePanel({
   onSelectProject,
   onSelectProfile,
   onNewSession,
-  onOpenCreateProject,
 }: WorkspacePanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -145,16 +143,6 @@ export default function WorkspacePanel({
         <div>
           <div className="flex items-center justify-between px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-ink-low">
             <span>Projects</span>
-            {onOpenCreateProject && (
-              <button
-                type="button"
-                onClick={onOpenCreateProject}
-                className="hover:text-white transition-colors"
-                title="Register Project"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
-            )}
           </div>
 
           <div className="space-y-1 mt-1">

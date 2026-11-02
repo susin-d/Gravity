@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Home,
-  FolderGit2,
   Clock,
   Users,
   Activity,
@@ -9,7 +8,7 @@ import {
   Zap,
 } from "lucide-react";
 
-export type NavTab = "workspace" | "projects" | "history" | "profiles" | "adapters" | "autoswitch" | "settings";
+export type NavTab = "workspace" | "history" | "profiles" | "adapters" | "autoswitch" | "settings";
 
 interface ActivityRailProps {
   activeTab: NavTab;
@@ -30,7 +29,6 @@ export default function ActivityRail({
 }: ActivityRailProps) {
   const navItems: Array<{ id: NavTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: "workspace", label: "Workspace", icon: Home },
-    { id: "projects", label: "Projects", icon: FolderGit2 },
     { id: "history", label: "History", icon: Clock },
     { id: "profiles", label: "Profiles", icon: Users },
     { id: "adapters", label: "Adapter Health", icon: Activity },

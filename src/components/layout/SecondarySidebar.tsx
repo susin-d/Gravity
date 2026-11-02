@@ -1,9 +1,8 @@
 import { NavTab } from "./ActivityRail";
-import { Project } from "../../pages/Projects";
+import { Project } from "../../types/project";
 import { Profile } from "../../pages/Profiles";
 import { UsageReading } from "../UsageBadge";
 import WorkspacePanel from "./panels/WorkspacePanel";
-import ProjectsPanel from "./panels/ProjectsPanel";
 import ProfilesPanel from "./panels/ProfilesPanel";
 import HistoryPanel from "./panels/HistoryPanel";
 import AdaptersPanel from "./panels/AdaptersPanel";
@@ -27,7 +26,6 @@ interface SecondarySidebarProps {
   onSelectAdapter: (adapter: "claude" | "codex") => void;
   onSelectSettingsSection: (section: SettingsSection) => void;
   onNewSession: () => void;
-  onOpenCreateProject?: () => void;
 }
 
 export default function SecondarySidebar({
@@ -48,7 +46,6 @@ export default function SecondarySidebar({
   onSelectAdapter,
   onSelectSettingsSection,
   onNewSession,
-  onOpenCreateProject,
 }: SecondarySidebarProps) {
   if (!isOpen) return null;
 
@@ -68,16 +65,6 @@ export default function SecondarySidebar({
           onSelectProject={onSelectProject}
           onSelectProfile={onSelectProfile}
           onNewSession={onNewSession}
-          onOpenCreateProject={onOpenCreateProject}
-        />
-      )}
-
-      {activeTab === "projects" && (
-        <ProjectsPanel
-          projects={projects}
-          selectedProjectId={activeProjectId}
-          onSelectProject={onSelectProject}
-          onOpenCreateProject={onOpenCreateProject}
         />
       )}
 
