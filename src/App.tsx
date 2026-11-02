@@ -1,165 +1,199 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  FolderGit2,
-  Users,
-  Activity,
-  Zap,
-  History as HistoryIcon,
-  Settings as SettingsIcon,
-  Orbit,
-} from "lucide-react";
-import Settings from "./pages/Settings";
-import Profiles from "./pages/Profiles";
-import Projects from "./pages/Projects";
+import Titlebar from "./components/layout/Titlebar";
+import ActivityRail, { NavTab } from "./components/layout/ActivityRail";
+import SecondarySidebar from "./components/layout/SecondarySidebar";
+import WorkspaceView from "./pages/WorkspaceView";
+import Projects, { Project } from "./pages/Projects";
+import Profiles, { Profile, Session } from "./pages/Profiles";
 import AdapterHealth from "./pages/AdapterHealth";
 import AutoSwitchConsent from "./pages/AutoSwitchConsent";
+import Settings from "./pages/Settings";
 import History from "./pages/History";
-
-type Page = "projects" | "profiles" | "adapters" | "autoswitch" | "settings" | "history";
+import { UsageReading } from "./components/UsageBadge";
 
 interface AppSettings {
   flags: { auto_switch: boolean };
 }
 
-interface NavItemConfig {
-  id: Page;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const NAV: NavItemConfig[] = [
-  { id: "projects",  label: "Projects",  icon: FolderGit2  },
-  { id: "profiles",  label: "Profiles",  icon: Users       },
-  { id: "adapters",  label: "Adapters",  icon: Activity    },
-  { id: "history",   label: "History",   icon: HistoryIcon },
-  { id: "settings",  label: "Settings",  icon: SettingsIcon },
-];
-
 export default function App() {
-  const [page, setPage] = useState<Page>("projects");
-  const [version, setVersion] = useState("");
+  const [navHistory, setNavHistory] = useState<NavTab[]>(["workspace"]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [usages, setUsages] = useState<Record<string, UsageReading>>({});
+  const [activeSessions, setActiveSessions] = useState<Session[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+
   const [autoSwitchFlag, setAutoSwitchFlag] = useState(false);
 
-  useEffect(() => {
-    invoke<string>("get_version").then(setVersion).catch(() => {});
-    invoke<AppSettings>("get_settings")
-      .then((s) => setAutoSwitchFlag(s.flags.auto_switch))
-      .catch(() => {});
+  const activeTab = navHistory[historyIndex] || "workspace";
+
+  const navigateTo = useCallback((tab: NavTab) => {
+    setNavHistory((prev) => {
+      const next = prev.slice(0, historyIndex + 1);
+      return [...next, tab];
+    });
+    setHistoryIndex((prev) => prev + 1);
+  }, [historyIndex]);
+
+  const handleGoBack = useCallback(() => {
+    if (historyIndex > 0) {
+      setHistoryIndex((prev) => prev - 1);
+    }
+  }, [historyIndex]);
+
+  const handleGoForward = useCallback(() => {
+    if (historyIndex < navHistory.length - 1) {
+      setHistoryIndex((prev) => prev + 1);
+    }
+  }, [historyIndex, navHistory.length]);
+
+  const refreshData = useCallback(async () => {
+    try {
+      const [projList, profList, settings, latestUsages, sessions] = await Promise.all([
+        invoke<Project[]>("list_projects").catch(() => []),
+        invoke<Profile[]>("list_profiles").catch(() => []),
+        invoke<AppSettings>("get_settings").catch(() => ({ flags: { auto_switch: false } })),
+        invoke<Record<string, UsageReading>>("list_latest_usages").catch(() => ({})),
+        invoke<Session[]>("list_sessions").catch(() => []),
+      ]);
+
+      setProjects(projList);
+      setProfiles(profList);
+      setAutoSwitchFlag(settings.flags.auto_switch);
+      setUsages(latestUsages);
+      setActiveSessions(sessions);
+
+      // Default active project
+      if (projList.length > 0) {
+        setActiveProjectId((curr) => curr || projList[0].id);
+      }
+
+      // Default active profile
+      if (profList.length > 0) {
+        setActiveProfileId((curr) => curr || profList[0].id);
+      }
+    } catch (e) {
+      console.debug("Failed refreshing app data", e);
+    }
   }, []);
 
-  const visibleNav: NavItemConfig[] = autoSwitchFlag
-    ? [
-        ...NAV.slice(0, 3),
-        { id: "autoswitch" as Page, label: "Auto-Switch", icon: Zap },
-        ...NAV.slice(3),
-      ]
-    : NAV;
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  // Keep active profile synced with active project's default if project changes
+  const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0] || null;
+  const activeProfile =
+    profiles.find((p) => p.id === activeProfileId) ||
+    profiles.find((p) => p.id === activeProject?.default_profile_id) ||
+    profiles[0] ||
+    null;
+
+  const currentUsage = activeProfile ? usages[activeProfile.id] : null;
+
+  const getProfileInitials = (name?: string) => {
+    if (!name) return "SR";
+    const parts = name.trim().split(/[\s_-]+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0a0a]"
-         style={{ backgroundImage: "radial-gradient(ellipse at 50% 38%, #131313 0%, #060606 68%)" }}>
+    <div
+      className="flex h-screen w-screen flex-col overflow-hidden bg-[#0d0d0d] text-ink-high antialiased select-none"
+      style={{
+        backgroundImage: "radial-gradient(ellipse at 50% 35%, #151515 0%, #070707 75%)",
+      }}
+    >
+      {/* ── Top Custom Window Titlebar ───────────────────────────────────────── */}
+      <Titlebar
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        canGoBack={historyIndex > 0}
+        canGoForward={historyIndex < navHistory.length - 1}
+        onGoBack={handleGoBack}
+        onGoForward={handleGoForward}
+        onNewSession={() => navigateTo("workspace")}
+        autoSwitchArmed={autoSwitchFlag}
+        activeProfileName={activeProfile?.label}
+        onSelectPage={(tab) => navigateTo(tab as NavTab)}
+      />
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <aside
-        className="flex w-52 shrink-0 flex-col border-r border-edge-subtle"
-        style={{
-          background: "rgba(5, 5, 5, 0.75)",
-          backdropFilter: "blur(40px)",
-          WebkitBackdropFilter: "blur(40px)",
-        }}
-      >
-        {/* Wordmark / drag region */}
-        <div
-          className="flex items-center gap-2.5 px-4 py-[14px]"
-          data-tauri-drag-region
-        >
-          <div
-            className="p-1.5 rounded-lg border border-edge-subtle text-white"
-            style={{ background: "rgba(255,255,255,0.09)" }}
-          >
-            <Orbit className="h-4 w-4" />
-          </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="text-sm font-semibold tracking-tight text-white leading-none">
-              Gravity
-            </span>
-            {version && (
-              <span className="mt-0.5 text-[10px] text-ink-low font-mono leading-none">
-                v{version}
-              </span>
-            )}
-          </div>
-        </div>
+      {/* ── Application Body (Activity Rail + Secondary Sidebar + Main Workspace) */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Leftmost Activity Rail */}
+        <ActivityRail
+          activeTab={activeTab}
+          onSelectTab={navigateTo}
+          autoSwitchFlag={autoSwitchFlag}
+          activeProfileInitials={getProfileInitials(activeProfile?.label)}
+          activeProfileName={activeProfile?.label}
+          activeProfileVendor={activeProfile?.vendor}
+        />
 
-        <div className="divider" />
+        {/* Collapsible Secondary Sidebar */}
+        <SecondarySidebar
+          isOpen={sidebarOpen}
+          projects={projects}
+          profiles={profiles}
+          activeProjectId={activeProjectId}
+          activeProfileId={activeProfileId}
+          onSelectProject={(id) => {
+            setActiveProjectId(id);
+            if (activeTab !== "workspace") {
+              navigateTo("workspace");
+            }
+          }}
+          onSelectProfile={setActiveProfileId}
+          onNewSession={() => navigateTo("workspace")}
+          onOpenCreateProject={() => navigateTo("projects")}
+        />
 
-        {/* Nav items */}
-        <nav className="flex-1 space-y-0.5 px-2.5 py-3">
-          {visibleNav.map(({ id, label, icon: Icon }) => {
-            const active = page === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setPage(id)}
-                className={[
-                  "relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all duration-150",
-                  active
-                    ? "text-white"
-                    : "text-ink-mid hover:text-white hover:bg-glass-2",
-                ].join(" ")}
-                style={active ? {
-                  background: "rgba(255,255,255,0.10)",
-                  boxShadow: "0 0 20px rgba(255,255,255,0.10), 0 1px 0 rgba(255,255,255,0.06) inset",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                } : {}}
-              >
-                <Icon
-                  className={`h-4 w-4 shrink-0 ${active ? "text-white" : "text-ink-low"}`}
+        {/* Center Main Workspace */}
+        <main className="flex-1 min-w-0 overflow-y-auto relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, scale: 0.995 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+              className="h-full w-full"
+            >
+              {activeTab === "workspace" && (
+                <WorkspaceView
+                  activeProject={activeProject}
+                  activeProfile={activeProfile}
+                  profiles={profiles}
+                  usageReading={currentUsage}
+                  activeSessions={activeSessions}
+                  onSelectProfile={setActiveProfileId}
+                  onOpenCreateProject={() => navigateTo("projects")}
+                  onSelectProjectName={() => navigateTo("projects")}
+                  onSessionSpawned={(session) => {
+                    setActiveSessions((prev) => [session, ...prev]);
+                    refreshData();
+                  }}
                 />
-                <span>{label}</span>
-                {active && (
-                  <motion.span
-                    layoutId="active-indicator"
-                    className="ml-auto h-1.5 w-1.5 rounded-full bg-white"
-                    style={{ boxShadow: "0 0 6px rgba(255,255,255,0.80)" }}
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Bottom strip */}
-        <div className="divider" />
-        <div className="px-4 py-3 flex items-center justify-between text-[11px] text-ink-low">
-          <span>AI CLI Navigator</span>
-          <span className="font-mono text-[10px]">Win32</span>
-        </div>
-      </aside>
-
-      {/* ── Main content ─────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={page}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
-          >
-            {page === "projects"   && <Projects />}
-            {page === "profiles"   && <Profiles />}
-            {page === "adapters"   && <AdapterHealth />}
-            {page === "autoswitch" && <AutoSwitchConsent />}
-            {page === "settings"   && <Settings />}
-            {page === "history"    && <History />}
-          </motion.div>
-        </AnimatePresence>
-      </main>
+              )}
+              {activeTab === "projects" && <Projects />}
+              {activeTab === "profiles" && <Profiles />}
+              {activeTab === "adapters" && <AdapterHealth />}
+              {activeTab === "autoswitch" && <AutoSwitchConsent />}
+              {activeTab === "settings" && <Settings />}
+              {activeTab === "history" && <History />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
     </div>
   );
 }
