@@ -18,6 +18,7 @@ pub struct TurnRequest {
     pub resume: Option<String>,
     pub permission_mode: String,
     pub project_path: Option<String>,
+    pub chat_id: String,
 }
 
 #[derive(Debug, Default)]
@@ -32,8 +33,14 @@ pub struct TurnOutcome {
 }
 
 /// Vendor-specific arguments. Kept pure so the CLI contract is testable
-/// without either CLI installed.
-fn cli_args(vendor: &str, permission_mode: &str, resume: Option<&str>) -> Vec<String> {
+/// without either CLI installed. `skip_git_repo_check` allows Codex to run
+/// outside a Git repository; other vendors ignore it.
+fn cli_args(
+    vendor: &str,
+    permission_mode: &str,
+    resume: Option<&str>,
+    skip_git_repo_check: bool,
+) -> Vec<String> {
     match vendor {
         "claude" => {
             let mut args = vec![
@@ -52,19 +59,47 @@ fn cli_args(vendor: &str, permission_mode: &str, resume: Option<&str>) -> Vec<St
         }
         "codex" => {
             let mut args = vec!["exec".to_string()];
-            if let Some(id) = resume {
-                args.push("resume".to_string());
-                args.push(id.to_string());
+            match resume {
+                // `exec resume` has no --sandbox flag; pin the sandbox with -c instead.
+                Some(id) => args.extend([
+                    "resume".to_string(),
+                    id.to_string(),
+                    "--json".to_string(),
+                    "-c".to_string(),
+                    format!("sandbox_mode=\"{permission_mode}\""),
+                ]),
+                None => args.extend([
+                    "--json".to_string(),
+                    "--sandbox".to_string(),
+                    permission_mode.to_string(),
+                ]),
             }
-            args.push("--json".to_string());
-            args.push("--sandbox".to_string());
-            args.push(permission_mode.to_string());
+            if skip_git_repo_check {
+                args.push("--skip-git-repo-check".to_string());
+            }
             // `-` reads the prompt from stdin, avoiding command-line length limits.
             args.push("-".to_string());
             args
         }
         _ => Vec::new(),
     }
+}
+
+/// Walk upwards looking for a `.git` entry (directory or worktree file).
+fn is_inside_git_repo(dir: &Path) -> bool {
+    dir.ancestors()
+        .any(|ancestor| ancestor.join(".git").exists())
+}
+
+/// Per-chat working directory used when the chat has no project. Keeping it
+/// stable per chat lets a resumed session pick up the same files.
+fn chat_temp_dir(chat_id: &str) -> std::io::Result<std::path::PathBuf> {
+    let dir = std::env::temp_dir()
+        .join("gravity")
+        .join("chats")
+        .join(chat_id);
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
 }
 
 fn build_command(cli: &Path) -> Command {
@@ -147,11 +182,13 @@ pub async fn run_turn(
     let secret = crate::profiles::get_secret(&request.profile.id)?;
     let env = crate::profiles::build_env_block(&request.profile, secret.as_deref());
 
-    let working_dir = request
-        .project_path
-        .clone()
-        .or_else(|| dirs::home_dir().map(|path| path.to_string_lossy().to_string()))
-        .unwrap_or_else(|| "C:\\".to_string());
+    let working_dir = match request.project_path.clone() {
+        Some(path) => path,
+        None => chat_temp_dir(&request.chat_id)?
+            .to_string_lossy()
+            .to_string(),
+    };
+    let skip_git_repo_check = !is_inside_git_repo(Path::new(&working_dir));
 
     let mut command = build_command(&cli);
     command
@@ -159,6 +196,7 @@ pub async fn run_turn(
             vendor,
             &request.permission_mode,
             request.resume.as_deref(),
+            skip_git_repo_check,
         ))
         .current_dir(&working_dir)
         .env_clear()
@@ -252,7 +290,7 @@ mod tests {
 
     #[test]
     fn claude_args_default_to_plan_mode() {
-        let args = cli_args("claude", "plan", None);
+        let args = cli_args("claude", "plan", None, false);
         assert_eq!(
             args,
             vec![
@@ -268,20 +306,36 @@ mod tests {
 
     #[test]
     fn claude_args_resume_with_session_id() {
-        let args = cli_args("claude", "acceptEdits", Some("abc"));
+        let args = cli_args("claude", "acceptEdits", Some("abc"), false);
         assert_eq!(args[args.len() - 2], "--resume");
         assert_eq!(args[args.len() - 1], "abc");
     }
 
     #[test]
     fn codex_args_read_prompt_from_stdin() {
-        let args = cli_args("codex", "read-only", None);
+        let args = cli_args("codex", "read-only", None, false);
         assert_eq!(args, vec!["exec", "--json", "--sandbox", "read-only", "-"]);
     }
 
     #[test]
-    fn codex_args_resume_places_subcommand_before_flags() {
-        let args = cli_args("codex", "workspace-write", Some("thread-1"));
+    fn codex_args_skip_git_repo_check_only_outside_git() {
+        let args = cli_args("codex", "read-only", None, true);
+        assert_eq!(
+            args,
+            vec![
+                "exec",
+                "--json",
+                "--sandbox",
+                "read-only",
+                "--skip-git-repo-check",
+                "-"
+            ]
+        );
+    }
+
+    #[test]
+    fn codex_resume_pins_sandbox_via_config_override() {
+        let args = cli_args("codex", "workspace-write", Some("thread-1"), false);
         assert_eq!(
             args,
             vec![
@@ -289,11 +343,41 @@ mod tests {
                 "resume",
                 "thread-1",
                 "--json",
-                "--sandbox",
-                "workspace-write",
+                "-c",
+                r#"sandbox_mode="workspace-write""#,
                 "-"
             ]
         );
+    }
+
+    #[test]
+    fn codex_resume_outside_git_also_gets_skip_flag() {
+        let args = cli_args("codex", "read-only", Some("thread-1"), true);
+        assert_eq!(
+            args,
+            vec![
+                "exec",
+                "resume",
+                "thread-1",
+                "--json",
+                "-c",
+                r#"sandbox_mode="read-only""#,
+                "--skip-git-repo-check",
+                "-"
+            ]
+        );
+    }
+
+    #[test]
+    fn detects_git_repositories_from_nested_directories() {
+        let root = tempfile::tempdir().expect("temp dir");
+        let nested = root.path().join("a").join("b");
+        std::fs::create_dir_all(&nested).expect("create nested");
+
+        assert!(!is_inside_git_repo(&nested));
+
+        std::fs::create_dir(root.path().join(".git")).expect("create .git");
+        assert!(is_inside_git_repo(&nested));
     }
 
     #[test]
