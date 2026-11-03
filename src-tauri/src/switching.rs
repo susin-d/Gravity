@@ -16,7 +16,7 @@ pub struct SwitchEvent {
     pub from_profile_id: String,
     pub to_profile_id: String,
     pub project_id: Option<String>,
-    pub reason: String, // "manual" | "limit" | "auto"
+    pub reason: String,  // "manual" | "limit" | "auto"
     pub outcome: String, // "completed" | "cancelled" | "confirmed_client_boundary" | "blocked_client_auto" | "no_eligible"
     pub new_session_id: Option<String>,
     pub switched_at: String,
@@ -26,7 +26,7 @@ pub struct SwitchEvent {
 /// Result returned from executing a switch operation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SwitchExecutionResult {
-    pub switch_event: SwitchEvent,
+    pub switch_event: Option<SwitchEvent>,
     pub new_session: Option<Session>,
     pub requires_client_confirmation: bool,
     pub confirmation_message: Option<String>,
@@ -153,39 +153,29 @@ pub async fn execute_switch(
 
     let is_client_boundary = from_profile.tag == "client" || to_profile.tag == "client";
 
-    // 1. Client boundary check (AC-07)
+    // 1. Client boundary check (AC-07). No audit row is written until the user
+    // confirms or cancels, so one attempt produces exactly one row (AC-11).
     if is_client_boundary && !client_confirmed {
         let message = format!(
             "Move to a client account? This starts a new session in {} · {} ({}). Client accounts are protected.",
             to_profile.label, to_profile.tag, to_profile.vendor
         );
 
-        let event = record_switch_event(
-            pool,
-            session_id,
-            from_profile_id,
-            to_profile_id,
-            project_id,
-            reason,
-            "cancelled", // Default state until confirmed
-            None,
-            Some("Client boundary confirmation requested"),
-        )
-        .await?;
-
         return Ok(SwitchExecutionResult {
-            switch_event: event,
+            switch_event: None,
             new_session: None,
             requires_client_confirmation: true,
             confirmation_message: Some(message),
         });
     }
 
-    // 2. Resolve project path if applicable
+    // 2. Resolve project path and terminal preference if applicable
     let mut resolved_path = None;
+    let mut resolved_terminal = None;
     if let Some(pid) = project_id {
         if let Ok(Some(proj)) = projects::get_project(pool, pid).await {
             resolved_path = Some(std::path::PathBuf::from(proj.path));
+            resolved_terminal = Some(proj.terminal);
         }
     }
 
@@ -197,8 +187,8 @@ pub async fn execute_switch(
         profile: &to_profile,
         project_path: resolved_path.as_deref(),
         project_id: project_id.map(|s| s.to_string()),
+        terminal: resolved_terminal.as_deref(),
         secret: secret.as_deref(),
-        custom_command: None,
     };
 
     let new_session = process::spawn_session(pool, process_mgr, opts).await?;
@@ -219,12 +209,15 @@ pub async fn execute_switch(
         reason,
         outcome,
         Some(&new_session.id),
-        Some(&format!("Switched from {} to {}", from_profile.label, to_profile.label)),
+        Some(&format!(
+            "Switched from {} to {}",
+            from_profile.label, to_profile.label
+        )),
     )
     .await?;
 
     Ok(SwitchExecutionResult {
-        switch_event,
+        switch_event: Some(switch_event),
         new_session: Some(new_session),
         requires_client_confirmation: false,
         confirmation_message: None,
@@ -256,10 +249,7 @@ pub async fn record_cancellation(
 }
 
 /// List recent switch events for the audit log.
-pub async fn list_switch_events(
-    pool: &SqlitePool,
-    limit: i64,
-) -> anyhow::Result<Vec<SwitchEvent>> {
+pub async fn list_switch_events(pool: &SqlitePool, limit: i64) -> anyhow::Result<Vec<SwitchEvent>> {
     let events = sqlx::query_as::<_, SwitchEvent>(
         r#"
         SELECT id, session_id, from_profile_id, to_profile_id, project_id, reason, outcome, new_session_id, switched_at, detail
@@ -381,7 +371,10 @@ mod tests {
 
         // Attempting to suggest fallback for p1
         let suggestion = suggest_switch(&pool, "p1").await.unwrap();
-        assert!(suggestion.is_none(), "When no other profiles exist, must return None");
+        assert!(
+            suggestion.is_none(),
+            "When no other profiles exist, must return None"
+        );
     }
 
     #[tokio::test]

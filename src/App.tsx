@@ -1,252 +1,148 @@
-import { useState, useEffect, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { motion, AnimatePresence } from "framer-motion";
-import Titlebar from "./components/layout/Titlebar";
-import ActivityRail, { NavTab } from "./components/layout/ActivityRail";
-import SecondarySidebar from "./components/layout/SecondarySidebar";
-import WorkspaceView from "./pages/WorkspaceView";
-import { Project } from "./types/project";
-import Profiles, { Profile, Session } from "./pages/Profiles";
-import AdapterHealth from "./pages/AdapterHealth";
-import AutoSwitchConsent from "./pages/AutoSwitchConsent";
-import Settings from "./pages/Settings";
-import History from "./pages/History";
-import { UsageReading } from "./components/UsageBadge";
-import { SettingsSection } from "./components/layout/panels/SettingsPanel";
+import { useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
+import { pageTitles, type PageId } from "./lib/navigation";
+import { AppDataProvider, useAppData } from "./state/AppData";
+import { ToastProvider } from "./components/ui/toast";
+import { Banner } from "./components/ui/banner";
+import { Button } from "./components/ui/button";
+import { Skeleton } from "./components/ui/skeleton";
+import { Titlebar } from "./components/layout/titlebar";
+import { Sidebar } from "./components/layout/sidebar";
+import { LaunchPage } from "./pages/Launch";
+import { ProfilesPage } from "./pages/Profiles";
+import { ProjectsPage } from "./pages/Projects";
+import { ActivityPage } from "./pages/Activity";
+import { SettingsPage } from "./pages/Settings";
 
-interface AppSettings {
-  flags: { auto_switch: boolean };
+const pages: PageId[] = ["launch", "profiles", "projects", "activity", "settings"];
+
+function LoadingShell() {
+  return (
+    <div className="flex min-h-0 flex-1">
+      <div className="w-60 shrink-0 space-y-2 border-r border-line bg-panel p-3 max-[900px]:w-16">
+        {Array.from({ length: 5 }, (_, index) => (
+          <Skeleton key={index} className="h-8 w-full" />
+        ))}
+      </div>
+      <div className="flex-1 space-y-4 p-6">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-4 w-80" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    </div>
+  );
 }
 
-export default function App() {
-  const [navHistory, setNavHistory] = useState<NavTab[]>(["workspace"]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+function ErrorShell({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+      <div className="max-w-md text-center">
+        <AlertTriangle className="mx-auto mb-3 h-6 w-6 text-danger-text" aria-hidden />
+        <h1 className="text-base font-semibold text-ink">Gravity could not load</h1>
+        <p className="mt-1 break-words text-sm text-ink-muted">{message}</p>
+        <Button variant="secondary" size="sm" className="mt-4" onClick={onRetry}>
+          Try again
+        </Button>
+      </div>
+    </div>
+  );
+}
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [usages, setUsages] = useState<Record<string, UsageReading>>({});
-  const [activeSessions, setActiveSessions] = useState<Session[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [selectedAdapter, setSelectedAdapter] = useState<"claude" | "codex" | null>(null);
-  const [selectedSettingsSection, setSelectedSettingsSection] =
-    useState<SettingsSection>("database");
+function AppShell() {
+  const { sessions, settings, loading, initialized, error, refresh } = useAppData();
+  const [page, setPage] = useState<PageId>("launch");
 
-  const [autoSwitchFlag, setAutoSwitchFlag] = useState(false);
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
 
-  const activeTab = navHistory[historyIndex] || "workspace";
+      if (document.querySelector('[role="dialog"]')) return;
 
-  const navigateTo = useCallback((tab: NavTab) => {
-    setNavHistory((prev) => {
-      const next = prev.slice(0, historyIndex + 1);
-      return [...next, tab];
-    });
-    setHistoryIndex((prev) => prev + 1);
-  }, [historyIndex]);
-
-  const handleGoBack = useCallback(() => {
-    if (historyIndex > 0) {
-      setHistoryIndex((prev) => prev - 1);
-    }
-  }, [historyIndex]);
-
-  const handleGoForward = useCallback(() => {
-    if (historyIndex < navHistory.length - 1) {
-      setHistoryIndex((prev) => prev + 1);
-    }
-  }, [historyIndex, navHistory.length]);
-
-  const refreshData = useCallback(async () => {
-    try {
-      const [projList, profList, settings, latestUsages, sessions] = await Promise.all([
-        invoke<Project[]>("list_projects").catch(() => []),
-        invoke<Profile[]>("list_profiles").catch(() => []),
-        invoke<AppSettings>("get_settings").catch(() => ({ flags: { auto_switch: false } })),
-        invoke<Record<string, UsageReading>>("list_latest_usages").catch(() => ({})),
-        invoke<Session[]>("list_sessions").catch(() => []),
-      ]);
-
-      setProjects(projList);
-      setProfiles(profList);
-      setAutoSwitchFlag(settings.flags.auto_switch);
-      setUsages(latestUsages);
-      setActiveSessions(sessions);
-
-      // Default active project
-      if (projList.length > 0) {
-        setActiveProjectId((curr) => curr || projList[0].id);
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT")
+      ) {
+        return;
       }
 
-      // Default active profile
-      if (profList.length > 0) {
-        setActiveProfileId((curr) => curr || profList[0].id);
-      }
-    } catch (e) {
-      console.debug("Failed refreshing app data", e);
+      const index = Number(event.key);
+      if (!Number.isInteger(index) || index < 1 || index > pages.length) return;
+
+      event.preventDefault();
+      setPage(pages[index - 1]);
     }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    document.title = `${pageTitles[page]} · Gravity`;
+  }, [page]);
 
-  // Keyboard shortcuts advertised by the titlebar menus.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || e.altKey || e.metaKey) return;
-      const key = e.key.toLowerCase();
-      if (key === "n") {
-        e.preventDefault();
-        navigateTo("workspace");
-      } else if (key === "b") {
-        e.preventDefault();
-        setSidebarOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigateTo]);
-
-  // Keep active profile synced with active project's default if project changes
-  const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0] || null;
-  const activeProfile =
-    profiles.find((p) => p.id === activeProfileId) ||
-    profiles.find((p) => p.id === activeProject?.default_profile_id) ||
-    profiles[0] ||
-    null;
-
-  const currentUsage = activeProfile ? usages[activeProfile.id] : null;
-
-  const getProfileInitials = (name?: string) => {
-    if (!name) return "SR";
-    const parts = name.trim().split(/[\s_-]+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
-  };
-
-  const handleRailTabClick = useCallback(
-    (tab: NavTab) => {
-      if (tab === activeTab) {
-        setSidebarOpen((prev) => !prev);
-      } else {
-        setSidebarOpen(true);
-        navigateTo(tab);
-      }
-    },
-    [activeTab, navigateTo]
-  );
+  const runningCount = sessions.filter((session) => session.status === "running").length;
 
   return (
-    <div
-      className="flex h-screen w-screen flex-col overflow-hidden bg-[#0d0d0d] text-ink-high antialiased select-none"
-      style={{
-        backgroundImage: "radial-gradient(ellipse at 50% 35%, #151515 0%, #070707 75%)",
-      }}
-    >
-      {/* ── Top Custom Window Titlebar ───────────────────────────────────────── */}
-      <Titlebar
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-        canGoBack={historyIndex > 0}
-        canGoForward={historyIndex < navHistory.length - 1}
-        onGoBack={handleGoBack}
-        onGoForward={handleGoForward}
-        onNewSession={() => navigateTo("workspace")}
-        autoSwitchArmed={autoSwitchFlag}
-        activeProfileName={activeProfile?.label}
-        onSelectPage={(tab) => navigateTo(tab as NavTab)}
-      />
+    <div className="flex h-screen flex-col bg-canvas text-ink">
+      <Titlebar />
 
-      {/* ── Application Body (Activity Rail + Secondary Sidebar + Main Workspace) */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Leftmost Activity Rail */}
-        <ActivityRail
-          activeTab={activeTab}
-          onSelectTab={handleRailTabClick}
-          autoSwitchFlag={autoSwitchFlag}
-          activeProfileInitials={getProfileInitials(activeProfile?.label)}
-          activeProfileName={activeProfile?.label}
-          activeProfileVendor={activeProfile?.vendor}
-        />
+      {!initialized && loading ? (
+        <LoadingShell />
+      ) : !initialized && error ? (
+        <ErrorShell message={error} onRetry={() => void refresh()} />
+      ) : (
+        <div className="flex min-h-0 flex-1">
+          <Sidebar
+            page={page}
+            onNavigate={setPage}
+            runningCount={runningCount}
+            autoSwitchEnabled={settings?.flags.auto_switch === true}
+          />
 
-        {/* Collapsible Secondary Sidebar */}
-        <SecondarySidebar
-          isOpen={sidebarOpen}
-          activeTab={activeTab}
-          projects={projects}
-          profiles={profiles}
-          usages={usages}
-          activeProjectId={activeProjectId}
-          activeProfileId={activeProfileId}
-          selectedEventId={selectedEventId}
-          selectedAdapter={selectedAdapter}
-          selectedSettingsSection={selectedSettingsSection}
-          autoSwitchFlag={autoSwitchFlag}
-          onSelectProject={(id) => {
-            setActiveProjectId(id);
-            if (activeTab !== "workspace") {
-              navigateTo("workspace");
-            }
-          }}
-          onSelectProfile={setActiveProfileId}
-          onSelectEvent={setSelectedEventId}
-          onSelectAdapter={setSelectedAdapter}
-          onSelectSettingsSection={setSelectedSettingsSection}
-          onNewSession={() => navigateTo("workspace")}
-        />
+          <main className="min-w-0 flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-5xl space-y-4 p-6">
+              {error && (
+                <Banner
+                  variant="danger"
+                  title="Could not refresh data"
+                  action={
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void refresh()}
+                    >
+                      Retry
+                    </Button>
+                  }
+                >
+                  {error}
+                </Banner>
+              )}
 
-        {/* Center Main Workspace */}
-        <main className="flex-1 min-w-0 overflow-y-auto relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, scale: 0.995 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}
-              className="h-full w-full"
-            >
-              {activeTab === "workspace" && (
-                <WorkspaceView
-                  activeProject={activeProject}
-                  activeProfile={activeProfile}
-                  profiles={profiles}
-                  usageReading={currentUsage}
-                  activeSessions={activeSessions}
-                  onSelectProfile={setActiveProfileId}
-                  onSessionSpawned={(session) => {
-                    setActiveSessions((prev) => [session, ...prev]);
-                    refreshData();
-                  }}
-                />
-              )}
-              {activeTab === "profiles" && (
-                <Profiles
-                  selectedProfileId={activeProfileId}
-                  onSelectProfile={setActiveProfileId}
-                />
-              )}
-              {activeTab === "adapters" && (
-                <AdapterHealth selectedAdapter={selectedAdapter} />
-              )}
-              {activeTab === "autoswitch" && <AutoSwitchConsent />}
-              {activeTab === "settings" && (
-                <Settings selectedSection={selectedSettingsSection} />
-              )}
-              {activeTab === "history" && (
-                <History
-                  selectedEventId={selectedEventId}
-                  onSelectEvent={setSelectedEventId}
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-      </div>
+              {page === "launch" && <LaunchPage onNavigate={setPage} />}
+              {page === "profiles" && <ProfilesPage />}
+              {page === "projects" && <ProjectsPage onNavigate={setPage} />}
+              {page === "activity" && <ActivityPage />}
+              {page === "settings" && <SettingsPage />}
+            </div>
+          </main>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <AppDataProvider>
+        <AppShell />
+      </AppDataProvider>
+    </ToastProvider>
   );
 }

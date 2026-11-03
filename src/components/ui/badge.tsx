@@ -1,57 +1,62 @@
-import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import type { HTMLAttributes } from "react";
+import type { Tag, Vendor } from "../../lib/types";
 import { cn } from "../../lib/utils";
 
-const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-mono font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-white/30",
-  {
-    variants: {
-      variant: {
-        // Monochrome default
-        default:
-          "border-edge-DEFAULT bg-glass-3 text-white",
-        secondary:
-          "border-edge-subtle bg-glass-2 text-ink-mid",
-        // Semantic — kept saturated
-        destructive:
-          "border-red-800/80 bg-red-950/60 text-red-300",
-        outline:
-          "text-white border-edge-DEFAULT",
-        success:
-          "border-emerald-800/80 bg-emerald-950/60 text-emerald-300",
-        warning:
-          "border-amber-800/80 bg-amber-950/60 text-amber-300",
-        info:
-          "border-sky-800/80 bg-sky-950/60 text-sky-300",
-        neutral:
-          "border-edge-subtle bg-glass-2 text-ink-mid",
-        // Vendor / tag
-        claude:
-          "border-orange-800/80 bg-orange-950/50 text-orange-300",
-        codex:
-          "border-emerald-800/80 bg-emerald-950/50 text-emerald-300",
-        personal:
-          "border-sky-800/80 bg-sky-950/50 text-sky-300",
-        work:
-          "border-purple-800/80 bg-purple-950/50 text-purple-300",
-        client:
-          "border-amber-800/80 bg-amber-950/50 text-amber-300",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
+export type BadgeVariant =
+  | "neutral"
+  | "default"
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "claude"
+  | "codex"
+  | "tag-personal"
+  | "tag-work"
+  | "tag-client";
+
+const variants: Record<BadgeVariant, string> = {
+  neutral: "border-line bg-raised text-ink-muted",
+  default: "border-line-strong bg-hover text-ink",
+  success: "border-success-border bg-success-bg text-success-text",
+  warning: "border-warning-border bg-warning-bg text-warning-text",
+  danger: "border-danger-border bg-danger-bg text-danger-text",
+  info: "border-info-border bg-info-bg text-info-text",
+  claude: "border-claude-border bg-claude-bg text-claude-text",
+  codex: "border-codex-border bg-codex-bg text-codex-text",
+  "tag-personal": "border-line bg-raised text-ink-muted",
+  "tag-work": "border-info-border bg-info-bg text-info-text",
+  "tag-client": "border-danger-border bg-danger-bg text-danger-text",
+};
+
+export function tagBadgeVariant(tag: Tag): BadgeVariant {
+  switch (tag) {
+    case "personal":
+      return "tag-personal";
+    case "work":
+      return "tag-work";
+    case "client":
+      return "tag-client";
   }
-);
-
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
-
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
-  );
 }
 
-export { Badge, badgeVariants };
+export function vendorBadgeVariant(vendor: Vendor): BadgeVariant {
+  return vendor === "claude" ? "claude" : "codex";
+}
+
+export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  variant?: BadgeVariant;
+}
+
+export function Badge({ className, variant = "neutral", ...props }: BadgeProps) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-sm border px-1.5 py-0.5 text-[11px] font-medium leading-4",
+        variants[variant],
+        className,
+      )}
+      {...props}
+    />
+  );
+}

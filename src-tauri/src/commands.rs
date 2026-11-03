@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 use tracing::info;
 
-use crate::adapters::{self, AdapterHealth, DetectionResult, LimitEvent};
+use crate::adapters::{self, AdapterHealth, LimitEvent};
 use crate::auto_switch;
 use crate::flags::FeatureFlags;
 use crate::process::{self, Session, SpawnOptions};
-use crate::profiles::{self, CreateProfileInput, Profile};
+use crate::profiles::{self, CreateProfileInput, CredentialStatus, Profile, UpdateProfileInput};
 use crate::projects::{self, CreateProjectInput, Project, UpdateProjectInput};
 use crate::switching::{self, SwitchEvent, SwitchExecutionResult};
 use crate::usage::{self, RecordUsageInput, UsageReading};
@@ -21,6 +21,7 @@ use crate::AppState;
 pub struct AppSettings {
     pub db_path: String,
     pub app_data_dir: String,
+    pub flags_path: String,
     pub flags: FeatureFlags,
 }
 
@@ -41,6 +42,11 @@ pub fn get_settings(state: State<'_, Arc<AppState>>) -> Result<AppSettings, Stri
             .to_string_lossy()
             .to_string(),
         app_data_dir: state.app_data_dir.to_string_lossy().to_string(),
+        flags_path: state
+            .app_data_dir
+            .join("flags.toml")
+            .to_string_lossy()
+            .to_string(),
         flags: state.flags.clone(),
     })
 }
@@ -74,6 +80,24 @@ pub async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Resu
     profiles::delete_profile(state.db.pool(), &id)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Tauri command: update a profile's label, tag, or credential.
+#[tauri::command]
+pub async fn update_profile(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+    input: UpdateProfileInput,
+) -> Result<Profile, String> {
+    profiles::update_profile(state.db.pool(), &id, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Tauri command: report whether a profile has a stored credential.
+#[tauri::command]
+pub fn profile_credential_status(profile_id: String) -> CredentialStatus {
+    profiles::credential_status(&profile_id)
 }
 
 // ==========================================
@@ -135,17 +159,6 @@ pub async fn delete_project(state: State<'_, Arc<AppState>>, id: String) -> Resu
 // Usage Telemetry Commands (M3)
 // ==========================================
 
-/// Tauri command: get latest usage reading for a profile.
-#[tauri::command]
-pub async fn get_profile_usage(
-    state: State<'_, Arc<AppState>>,
-    profile_id: String,
-) -> Result<Option<UsageReading>, String> {
-    usage::get_latest_usage(state.db.pool(), &profile_id)
-        .await
-        .map_err(|e| e.to_string())
-}
-
 /// Tauri command: list latest usage reading for all profiles.
 #[tauri::command]
 pub async fn list_latest_usages(
@@ -156,15 +169,36 @@ pub async fn list_latest_usages(
         .map_err(|e| e.to_string())
 }
 
-/// Tauri command: manually record or simulate a usage reading.
+/// Tauri command: ask the profile's adapter for a fresh reading and persist it.
 #[tauri::command]
-pub async fn record_usage(
+pub async fn refresh_profile_usage(
     state: State<'_, Arc<AppState>>,
-    input: RecordUsageInput,
+    profile_id: String,
 ) -> Result<UsageReading, String> {
-    usage::record_usage(state.db.pool(), input)
+    let profile = profiles::get_profile(state.db.pool(), &profile_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Profile not found: {}", profile_id))?;
+
+    let adapter = adapters::get_adapter_for_vendor(&profile.vendor)
+        .ok_or_else(|| format!("No adapter for vendor: {}", profile.vendor))?;
+    let reading = adapter.read_usage(&profile);
+
+    usage::record_usage(
+        state.db.pool(),
+        RecordUsageInput {
+            profile_id: reading.profile_id,
+            source: reading.source,
+            window: reading.window,
+            value_used: reading.value_used,
+            value_limit: reading.value_limit,
+            unit: reading.unit,
+            reset_at: reading.reset_at,
+            detail: reading.detail,
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 // ==========================================
@@ -178,7 +212,7 @@ pub struct AdaptersHealthReport {
     pub codex: AdapterHealth,
 }
 
-/// Tauri command: report health of Claude and Codex adapters.
+/// Tauri command: probe the Claude and Codex CLIs on this machine.
 #[tauri::command]
 pub fn check_adapters_health() -> Result<AdaptersHealthReport, String> {
     let claude = adapters::claude::ClaudeAdapter::new();
@@ -190,19 +224,6 @@ pub fn check_adapters_health() -> Result<AdaptersHealthReport, String> {
     })
 }
 
-/// Tauri command: inspect a line of output for rate limits.
-#[tauri::command]
-pub fn detect_line_limit(
-    vendor: String,
-    line: String,
-    exit_code: Option<i32>,
-) -> Result<Option<DetectionResult>, String> {
-    let adapter = adapters::get_adapter_for_vendor(&vendor)
-        .ok_or_else(|| format!("Unknown vendor: {}", vendor))?;
-
-    Ok(adapter.detect_limit(&line, exit_code))
-}
-
 /// Tauri command: list recorded rate limit events.
 #[tauri::command]
 pub async fn list_limit_events(
@@ -212,6 +233,58 @@ pub async fn list_limit_events(
     adapters::list_limit_events(state.db.pool(), limit.unwrap_or(50))
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Result of a user-reported rate limit.
+#[derive(Serialize)]
+pub struct ReportRateLimitResult {
+    pub limit_event: LimitEvent,
+    pub auto_switch: Option<SwitchEvent>,
+}
+
+/// Tauri command: record a user-reported rate limit and run auto-switch when the
+/// feature flag and project policy allow it.
+#[tauri::command]
+pub async fn report_rate_limit(
+    state: State<'_, Arc<AppState>>,
+    session_id: String,
+) -> Result<ReportRateLimitResult, String> {
+    let session = process::get_session(state.db.pool(), &session_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Session not found: {}", session_id))?;
+
+    if session.status != "running" {
+        return Err(format!(
+            "Session {} is already {}; rate limits apply to running sessions",
+            session_id, session.status
+        ));
+    }
+
+    let limit_event = adapters::record_limit_event(
+        state.db.pool(),
+        &session_id,
+        &session.profile_id,
+        "manual",
+        "User reported a rate limit",
+        Some("Reported from the Gravity session list"),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let auto_switch = auto_switch::maybe_auto_switch(
+        state.db.pool(),
+        &state.process_mgr,
+        &session_id,
+        &state.flags,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(ReportRateLimitResult {
+        limit_event,
+        auto_switch,
+    })
 }
 
 // ==========================================
@@ -290,26 +363,6 @@ pub async fn list_switch_events(
 }
 
 // ==========================================
-// Auto-Switch Engine (M6, Flag-Gated)
-// ==========================================
-
-/// Tauri command: evaluate and execute automated switch for a limited session.
-#[tauri::command]
-pub async fn trigger_auto_switch(
-    state: State<'_, Arc<AppState>>,
-    session_id: String,
-) -> Result<Option<SwitchEvent>, String> {
-    auto_switch::maybe_auto_switch(
-        state.db.pool(),
-        &state.process_mgr,
-        &session_id,
-        &state.flags,
-    )
-    .await
-    .map_err(|e| e.to_string())
-}
-
-// ==========================================
 // Session & Process Commands
 // ==========================================
 
@@ -319,7 +372,8 @@ pub struct SpawnSessionInput {
     pub profile_id: Option<String>,
     pub project_path: Option<String>,
     pub project_id: Option<String>,
-    pub custom_command: Option<String>,
+    #[serde(default)]
+    pub client_confirmed: bool,
 }
 
 /// Tauri command: spawn an isolated CLI session bound to a Win32 Job Object.
@@ -333,36 +387,35 @@ pub async fn spawn_session(
     // 1. Resolve project details if project_id is provided
     let mut resolved_path = input.project_path.map(PathBuf::from);
     let mut resolved_profile_id = input.profile_id.clone();
+    let mut resolved_terminal: Option<String> = None;
 
     if let Some(ref proj_id) = input.project_id {
-        if let Ok(Some(proj)) = projects::get_project(pool, proj_id).await {
-            if resolved_path.is_none() {
-                resolved_path = Some(PathBuf::from(proj.path));
-            }
-            if resolved_profile_id.is_none() {
-                resolved_profile_id = proj.default_profile_id;
-            }
+        let proj = projects::get_project(pool, proj_id)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("Project not found: {}", proj_id))?;
+
+        if resolved_path.is_none() {
+            resolved_path = Some(PathBuf::from(&proj.path));
         }
+        if resolved_profile_id.is_none() {
+            resolved_profile_id = proj.default_profile_id.clone();
+        }
+        resolved_terminal = Some(proj.terminal);
     }
 
     // 2. Resolve profile
-    let profile_id = match resolved_profile_id {
-        Some(id) => id,
-        None => {
-            let profiles = profiles::list_profiles(pool)
-                .await
-                .map_err(|e| e.to_string())?;
-            if profiles.is_empty() {
-                return Err("No profiles found. Please create a profile first.".to_string());
-            }
-            profiles[0].id.clone()
-        }
-    };
+    let profile_id = resolved_profile_id
+        .ok_or_else(|| "Select a profile before launching a session".to_string())?;
 
     let profile = profiles::get_profile(pool, &profile_id)
         .await
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Profile not found: {}", profile_id))?;
+
+    if profile.tag == "client" && !input.client_confirmed {
+        return Err("Client boundary confirmation required for this profile".to_string());
+    }
 
     // 3. Fetch credential if stored
     let secret = profiles::get_secret(&profile.id).map_err(|e| e.to_string())?;
@@ -372,8 +425,8 @@ pub async fn spawn_session(
         profile: &profile,
         project_path: resolved_path.as_deref(),
         project_id: input.project_id,
+        terminal: resolved_terminal.as_deref(),
         secret: secret.as_deref(),
-        custom_command: input.custom_command,
     };
 
     // 5. Launch session
@@ -386,6 +439,17 @@ pub async fn spawn_session(
 #[tauri::command]
 pub async fn list_sessions(state: State<'_, Arc<AppState>>) -> Result<Vec<Session>, String> {
     process::list_sessions(state.db.pool())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Tauri command: terminate a session's Job Object and mark it killed.
+#[tauri::command]
+pub async fn stop_session(
+    state: State<'_, Arc<AppState>>,
+    session_id: String,
+) -> Result<Session, String> {
+    process::stop_session(state.db.pool(), &state.process_mgr, &session_id)
         .await
         .map_err(|e| e.to_string())
 }

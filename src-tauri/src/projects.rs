@@ -54,7 +54,10 @@ pub fn normalize_path(raw_path: &str) -> String {
             }
             s
         }
-        Err(_) => raw_path.replace('/', "\\").trim_end_matches('\\').to_string(),
+        Err(_) => raw_path
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_string(),
     }
 }
 
@@ -100,7 +103,10 @@ pub async fn create_project(
     .execute(pool)
     .await?;
 
-    info!("Project registered: {} ({}) with tag {}", name, id, input.tag);
+    info!(
+        "Project registered: {} ({}) with tag {}",
+        name, id, input.tag
+    );
 
     Ok(Project {
         id,
@@ -250,7 +256,10 @@ pub async fn set_auto_switch(
     .execute(pool)
     .await?;
 
-    info!("Project {} auto_switch_enabled set to {}", project_id, enabled);
+    info!(
+        "Project {} auto_switch_enabled set to {}",
+        project_id, enabled
+    );
     Ok(())
 }
 

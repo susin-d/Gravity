@@ -1,7 +1,7 @@
 use tracing::{info, warn};
+use windows::core::PCWSTR;
 use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::System::Threading::{CreateMutexW, OpenMutexW, MUTEX_ALL_ACCESS};
-use windows::core::PCWSTR;
 
 /// Name of the global mutex used for single-instance enforcement.
 const MUTEX_NAME: &str = "Global\\GravityApp";
@@ -24,7 +24,10 @@ impl Drop for SingleInstanceGuard {
 /// Returns `Ok(guard)` if this is the first instance.
 /// Returns `Err(())` if another instance already holds the mutex.
 pub fn acquire() -> Result<SingleInstanceGuard, ()> {
-    let wide_name: Vec<u16> = MUTEX_NAME.encode_utf16().chain(std::iter::once(0)).collect();
+    let wide_name: Vec<u16> = MUTEX_NAME
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
 
     // First, check if the mutex already exists
     let existing = unsafe { OpenMutexW(MUTEX_ALL_ACCESS, false, PCWSTR(wide_name.as_ptr())) };

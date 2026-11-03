@@ -13,7 +13,7 @@ use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
 use windows::Win32::System::JobObjects::{
     AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
-    SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+    SetInformationJobObject, TerminateJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
     JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
 };
 use windows::Win32::System::Threading::{
@@ -70,6 +70,11 @@ impl OwnedJobObject {
             Ok(())
         }
     }
+
+    /// Terminate every process in the job. The job handle stays valid until dropped.
+    pub fn terminate(&self) -> windows::core::Result<()> {
+        unsafe { TerminateJobObject(self.0, 1) }
+    }
 }
 
 impl Drop for OwnedJobObject {
@@ -83,6 +88,7 @@ impl Drop for OwnedJobObject {
 }
 
 /// In-memory manager keeping Job Objects alive for the lifetime of Gravity.
+#[derive(Default)]
 pub struct ProcessManager {
     jobs: Mutex<HashMap<String, Arc<OwnedJobObject>>>,
 }
@@ -105,6 +111,10 @@ impl ProcessManager {
             lock.remove(session_id);
         }
     }
+
+    pub fn job_for(&self, session_id: &str) -> Option<Arc<OwnedJobObject>> {
+        self.jobs.lock().ok()?.get(session_id).cloned()
+    }
 }
 
 /// Detect availability of Windows Terminal (`wt.exe`).
@@ -119,7 +129,10 @@ pub fn normalize_win32_path(path_str: &str) -> String {
     if trimmed.len() >= 240 && !trimmed.starts_with(r"\\?\") {
         if trimmed.starts_with(r"\\") {
             // UNC path: \\server\share -> \\?\UNC\server\share
-            format!(r"\\?\UNC\{}", &trimmed[2..])
+            format!(
+                r"\\?\UNC\{}",
+                trimmed.strip_prefix(r"\\").unwrap_or(trimmed)
+            )
         } else if trimmed.chars().nth(1) == Some(':') {
             // Drive-letter path: C:\deep\... -> \\?\C:\deep\...
             format!(r"\\?\{trimmed}")
@@ -160,9 +173,10 @@ pub fn find_windows_terminal() -> Option<PathBuf> {
 /// The format consists of null-terminated `VAR=VAL\0` strings sorted case-insensitively,
 /// terminated with an extra `\0`.
 pub fn create_unicode_env_block(env: &HashMap<String, String>) -> Vec<u16> {
-    let mut entries: Vec<(String, String)> = env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    let mut entries: Vec<(String, String)> =
+        env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
     // Sort entries case-insensitively as required by Win32 CreateProcess
-    entries.sort_by(|a, b| a.0.to_uppercase().cmp(&b.0.to_uppercase()));
+    entries.sort_by_key(|entry| entry.0.to_uppercase());
 
     let mut block: Vec<u16> = Vec::new();
     for (k, v) in entries {
@@ -176,7 +190,10 @@ pub fn create_unicode_env_block(env: &HashMap<String, String>) -> Vec<u16> {
 
 /// Convert a Rust string to a wide null-terminated UTF-16 vector.
 fn to_wide_chars(s: &str) -> Vec<u16> {
-    OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
+    OsStr::new(s)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
 }
 
 /// Options for launching an isolated terminal session.
@@ -184,8 +201,8 @@ pub struct SpawnOptions<'a> {
     pub profile: &'a Profile,
     pub project_path: Option<&'a Path>,
     pub project_id: Option<String>,
+    pub terminal: Option<&'a str>,
     pub secret: Option<&'a str>,
-    pub custom_command: Option<String>,
 }
 
 /// Synchronously launches the process and assigns it to the Win32 Job Object.
@@ -251,14 +268,11 @@ pub async fn spawn_session(
     let env_map = crate::profiles::build_env_block(opts.profile, opts.secret);
     let env_block = create_unicode_env_block(&env_map);
 
-    // 2. Prepare command line based on vendor and terminal availability
-    let cli_cmd = match opts.custom_command {
-        Some(cmd) => cmd,
-        None => match opts.profile.vendor.as_str() {
-            "claude" => "claude".to_string(),
-            "codex" => "codex".to_string(),
-            _ => "powershell.exe".to_string(),
-        },
+    // 2. Prepare command line based on vendor and the project's terminal preference
+    let cli_cmd = match opts.profile.vendor.as_str() {
+        "claude" => "claude",
+        "codex" => "codex",
+        other => return Err(anyhow::anyhow!("Unsupported vendor: {}", other)),
     };
 
     let raw_dir = opts
@@ -271,20 +285,24 @@ pub async fn spawn_session(
         });
     let target_dir = normalize_win32_path(&raw_dir);
 
-    let (terminal_exe, cmd_line) = match find_windows_terminal() {
-        Some(wt_path) => {
-            // Windows Terminal available: launch new tab in target dir
+    let terminal_pref = opts.terminal.unwrap_or("auto");
+    let wt_path = find_windows_terminal();
+    let (terminal_exe, cmd_line) = match terminal_pref {
+        "wt" => {
+            let wt = wt_path.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Windows Terminal (wt.exe) is not installed. Choose PowerShell or Auto in the project settings."
+                )
+            })?;
             let cmd = format!(
                 "\"{}\" -d \"{}\" -- powershell.exe -NoExit -Command \"{}\"",
-                wt_path.to_string_lossy(),
+                wt.to_string_lossy(),
                 target_dir.replace('"', "\\\""),
                 cli_cmd
             );
-            (wt_path.to_string_lossy().to_string(), cmd)
+            (wt.to_string_lossy().to_string(), cmd)
         }
-        None => {
-            // Fallback: PowerShell directly
-            warn!("Windows Terminal not found; falling back to powershell.exe");
+        "powershell" => {
             let cmd = format!(
                 "powershell.exe -NoExit -Command \"Set-Location -LiteralPath '{}'; {}\"",
                 target_dir.replace('\'', "''"),
@@ -292,6 +310,27 @@ pub async fn spawn_session(
             );
             ("powershell.exe".to_string(), cmd)
         }
+        "auto" => match wt_path {
+            Some(wt) => {
+                let cmd = format!(
+                    "\"{}\" -d \"{}\" -- powershell.exe -NoExit -Command \"{}\"",
+                    wt.to_string_lossy(),
+                    target_dir.replace('"', "\\\""),
+                    cli_cmd
+                );
+                (wt.to_string_lossy().to_string(), cmd)
+            }
+            None => {
+                warn!("Windows Terminal not found; falling back to powershell.exe");
+                let cmd = format!(
+                    "powershell.exe -NoExit -Command \"Set-Location -LiteralPath '{}'; {}\"",
+                    target_dir.replace('\'', "''"),
+                    cli_cmd
+                );
+                ("powershell.exe".to_string(), cmd)
+            }
+        },
+        other => return Err(anyhow::anyhow!("Unknown terminal setting: {}", other)),
     };
 
     info!(
@@ -300,7 +339,9 @@ pub async fn spawn_session(
     );
 
     // 3. Create Win32 Job Object for process isolation
-    let job = Arc::new(OwnedJobObject::new().map_err(|e| anyhow::anyhow!("Failed to create Job Object: {e}"))?);
+    let job = Arc::new(
+        OwnedJobObject::new().map_err(|e| anyhow::anyhow!("Failed to create Job Object: {e}"))?,
+    );
 
     // 4. Launch child process synchronously
     let pid = launch_process_in_job(&job, &cmd_line, &target_dir, env_block)? as i64;
@@ -349,6 +390,98 @@ pub async fn list_sessions(pool: &SqlitePool) -> anyhow::Result<Vec<Session>> {
     .await?;
 
     Ok(sessions)
+}
+
+/// Fetch a single session by ID.
+pub async fn get_session(pool: &SqlitePool, id: &str) -> anyhow::Result<Option<Session>> {
+    let session = sqlx::query_as::<_, Session>(
+        r#"
+        SELECT id, profile_id, project_id, pid, started_at, ended_at, exit_code, status
+        FROM sessions
+        WHERE id = ?1
+        "#,
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(session)
+}
+
+/// Terminate a running session's Job Object and mark the session killed.
+pub async fn stop_session(
+    pool: &SqlitePool,
+    manager: &ProcessManager,
+    session_id: &str,
+) -> anyhow::Result<Session> {
+    let session = get_session(pool, session_id)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Session not found: {}", session_id))?;
+
+    if session.status != "running" {
+        return Err(anyhow::anyhow!(
+            "Session {} is already {}",
+            session_id,
+            session.status
+        ));
+    }
+
+    let job = manager.job_for(session_id).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Session {} is not managed by this Gravity instance and cannot be stopped from here",
+            session_id
+        )
+    })?;
+
+    job.terminate()
+        .map_err(|e| anyhow::anyhow!("TerminateJobObject failed: {}", e))?;
+    manager.unregister_job(session_id);
+
+    let now = Utc::now().to_rfc3339();
+    sqlx::query(
+        r#"
+        UPDATE sessions
+        SET status = 'killed', ended_at = ?2, exit_code = 1
+        WHERE id = ?1
+        "#,
+    )
+    .bind(session_id)
+    .bind(&now)
+    .execute(pool)
+    .await?;
+
+    info!("Session {} stopped by user", session_id);
+
+    Ok(Session {
+        status: "killed".to_string(),
+        ended_at: Some(now),
+        exit_code: Some(1),
+        ..session
+    })
+}
+
+/// Job Objects die with the Gravity process, so every row still marked `running`
+/// at startup belongs to a previous process and can no longer be running.
+pub async fn reconcile_stale_sessions(pool: &SqlitePool) -> anyhow::Result<u64> {
+    let result = sqlx::query(
+        r#"
+        UPDATE sessions
+        SET status = 'killed', ended_at = COALESCE(ended_at, ?1)
+        WHERE status = 'running'
+        "#,
+    )
+    .bind(Utc::now().to_rfc3339())
+    .execute(pool)
+    .await?;
+
+    if result.rows_affected() > 0 {
+        warn!(
+            "Reconciled {} stale running session(s) from a previous Gravity process",
+            result.rows_affected()
+        );
+    }
+
+    Ok(result.rows_affected())
 }
 
 #[cfg(test)]

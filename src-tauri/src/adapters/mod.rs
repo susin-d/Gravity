@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
@@ -12,9 +14,16 @@ pub mod codex;
 /// Health status of a CLI provider adapter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AdapterHealth {
+pub enum AdapterStatus {
     Ok,
     Degraded,
+}
+
+/// Result of probing a provider CLI on this machine.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdapterHealth {
+    pub status: AdapterStatus,
+    pub detail: String,
 }
 
 /// Result of evaluating a terminal stream line or exit code for rate limits.
@@ -50,6 +59,38 @@ pub trait ProviderAdapter: Send + Sync {
 
     /// Return current adapter health status.
     fn health(&self) -> AdapterHealth;
+}
+
+/// Locate a CLI executable on PATH, including npm shims (`.cmd`, `.bat`, `.ps1`).
+pub fn find_cli(name: &str) -> Option<PathBuf> {
+    let path_var = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&path_var) {
+        for ext in ["exe", "cmd", "bat", "ps1"] {
+            let candidate = dir.join(format!("{}.{}", name, ext));
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+        let bare = dir.join(name);
+        if bare.is_file() {
+            return Some(bare);
+        }
+    }
+    None
+}
+
+/// Probe a provider CLI instead of assuming it is installed.
+pub fn probe_health(name: &str) -> AdapterHealth {
+    match find_cli(name) {
+        Some(path) => AdapterHealth {
+            status: AdapterStatus::Ok,
+            detail: format!("Found {}", path.display()),
+        },
+        None => AdapterHealth {
+            status: AdapterStatus::Degraded,
+            detail: format!("{} not found on PATH", name),
+        },
+    }
 }
 
 /// Factory function to return the adapter for a given vendor.

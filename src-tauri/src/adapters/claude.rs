@@ -1,13 +1,12 @@
-use std::path::Path;
-
 use chrono::Utc;
 use uuid::Uuid;
 
-use crate::adapters::{AdapterHealth, DetectionResult, ProviderAdapter};
+use crate::adapters::{probe_health, AdapterHealth, DetectionResult, ProviderAdapter};
 use crate::profiles::Profile;
 use crate::usage::{UsageReading, UsageSource};
 
 /// Adapter for Claude Code CLI.
+#[derive(Default)]
 pub struct ClaudeAdapter;
 
 impl ClaudeAdapter {
@@ -19,7 +18,8 @@ impl ClaudeAdapter {
     fn extract_reset_timestamp(line: &str) -> Option<String> {
         // e.g. "Your limit will reset at 2026-11-03T02:00:00Z."
         for word in line.split_whitespace() {
-            let clean = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '-' && c != ':' && c != 'Z');
+            let clean = word
+                .trim_matches(|c: char| !c.is_alphanumeric() && c != '-' && c != ':' && c != 'Z');
             if clean.len() >= 19 && clean.contains('T') && clean.contains(':') {
                 return Some(clean.to_string());
             }
@@ -45,7 +45,8 @@ impl ProviderAdapter for ClaudeAdapter {
             || lower.contains("exceeded your monthly limit");
 
         // 2. Exit code heuristic: exit code 1 with limit/quota keywords
-        let is_exit_limit = exit_code == Some(1) && (lower.contains("limit") || lower.contains("quota"));
+        let is_exit_limit =
+            exit_code == Some(1) && (lower.contains("limit") || lower.contains("quota"));
 
         if is_limit_pattern || is_exit_limit {
             let reset_ts = Self::extract_reset_timestamp(line);
@@ -65,47 +66,8 @@ impl ProviderAdapter for ClaudeAdapter {
     }
 
     fn read_usage(&self, profile: &Profile) -> UsageReading {
-        let config_path = Path::new(&profile.config_dir);
-        let now = Utc::now().to_rfc3339();
-
-        // Check if config dir exists
-        if !config_path.exists() {
-            return UsageReading {
-                id: Uuid::new_v4().to_string(),
-                profile_id: profile.id.clone(),
-                source: UsageSource::Unknown.as_str().to_string(),
-                window: None,
-                value_used: None,
-                value_limit: None,
-                unit: None,
-                reset_at: None,
-                fetched_at: now,
-                detail: Some("Profile directory does not exist yet".to_string()),
-            };
-        }
-
-        // Try reading simulated fixture usage file if present
-        let fixture_path = config_path.join("claude_usage.json");
-        if fixture_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&fixture_path) {
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
-                    return UsageReading {
-                        id: Uuid::new_v4().to_string(),
-                        profile_id: profile.id.clone(),
-                        source: UsageSource::Official.as_str().to_string(),
-                        window: val.get("period").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                        value_used: val.get("tokens_used").and_then(|v| v.as_f64()),
-                        value_limit: val.get("tokens_limit").and_then(|v| v.as_f64()),
-                        unit: Some("tokens".to_string()),
-                        reset_at: val.get("reset_at").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                        fetched_at: now,
-                        detail: Some("Read from profile usage telemetry".to_string()),
-                    };
-                }
-            }
-        }
-
-        // PRIME DIRECTIVE #3: When cannot verify exact reading, mark unknown. Never guess.
+        // Gravity launches the CLI in a separate terminal and cannot read its
+        // output or the vendor's remote balance. Never guess a reading.
         UsageReading {
             id: Uuid::new_v4().to_string(),
             profile_id: profile.id.clone(),
@@ -115,19 +77,23 @@ impl ProviderAdapter for ClaudeAdapter {
             value_limit: None,
             unit: None,
             reset_at: None,
-            fetched_at: now,
-            detail: Some("Claude CLI active. Check usage manually via 'claude usage'.".to_string()),
+            fetched_at: Utc::now().to_rfc3339(),
+            detail: Some(
+                "Gravity cannot read Claude usage automatically. Check the Claude Code CLI or your Anthropic account."
+                    .to_string(),
+            ),
         }
     }
 
     fn health(&self) -> AdapterHealth {
-        AdapterHealth::Ok
+        probe_health("claude")
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
     use std::time::Instant;
 
     #[test]
@@ -152,8 +118,12 @@ mod tests {
     fn test_claude_ignores_normal_output() {
         let adapter = ClaudeAdapter::new();
 
-        assert!(adapter.detect_limit("Building project cargo check...", None).is_none());
-        assert!(adapter.detect_limit("Claude Code v0.2.14 initialized successfully.", None).is_none());
+        assert!(adapter
+            .detect_limit("Building project cargo check...", None)
+            .is_none());
+        assert!(adapter
+            .detect_limit("Claude Code v0.2.14 initialized successfully.", None)
+            .is_none());
         assert!(adapter.detect_limit("Reading files...", Some(0)).is_none());
     }
 
@@ -164,7 +134,8 @@ mod tests {
         let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("fixtures")
             .join("claude_limit.txt");
-        let content = std::fs::read_to_string(&fixture_path).expect("claude_limit.txt fixture must exist");
+        let content =
+            std::fs::read_to_string(&fixture_path).expect("claude_limit.txt fixture must exist");
 
         let adapter = ClaudeAdapter::new();
         let start = Instant::now();

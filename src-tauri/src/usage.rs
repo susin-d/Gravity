@@ -97,7 +97,11 @@ pub async fn record_usage(
 
     info!(
         "Usage recorded for profile {}: source={}, used={:?}, limit={:?}, reset_at={:?}",
-        input.profile_id, validated_source.as_str(), input.value_used, input.value_limit, reset_at
+        input.profile_id,
+        validated_source.as_str(),
+        input.value_used,
+        input.value_limit,
+        reset_at
     );
 
     Ok(UsageReading {
