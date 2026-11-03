@@ -83,10 +83,12 @@ signed-in state it cannot verify: Claude Code reports `Unavailable` (it has no
 verifiable status check), Codex reports whatever `codex login status` returns.
 
 Chat turns run the vendor CLI headlessly with piped stdio and a Job Object per
-turn, so Stop kills the whole process tree. A rate limit in the stream is
-recorded and retried on the next eligible same-vendor account when auto-switch is
-enabled. Switching accounts clears the vendor session id, so the next message
-replays Gravity's transcript instead.
+turn, so Stop kills the whole process tree. Chats without a project run in a
+per-chat folder under `%TEMP%\gravity\chats`; outside a Git repository Codex is
+launched with `--skip-git-repo-check` (the flag the CLI itself requires). A
+rate limit in the stream is recorded and retried on the next eligible
+same-vendor account when auto-switch is enabled. Switching accounts clears the
+vendor session id, so the next message replays Gravity's transcript instead.
 
 Rate limits are reported by you from a terminal session. Gravity never reads
 another terminal's output, so usage readings stay `Unknown` unless a provider

@@ -724,6 +724,7 @@ pub async fn send_message(
                 resume: resume.clone(),
                 permission_mode: chat.permission_mode.clone(),
                 project_path: project_path.clone(),
+                chat_id: chat_id.clone(),
             };
 
             let outcome =
