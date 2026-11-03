@@ -6,6 +6,13 @@
 
 ---
 
+## 0. Task Tracking Rules
+
+When working on any new task:
+1. **Before starting:** Open `todo.md`, add the task under "In Progress" with an unchecked box, and note what "done" looks like.
+2. **After completing:** Mark the task `[x]` under "Completed", move it from "In Progress", and add any follow-up tasks to "Backlog".
+3. Never start coding on a task that is not listed in `todo.md`.
+
 ## 1. Prime Directive for AI Agents
 
 When working on this codebase:
