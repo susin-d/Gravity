@@ -67,13 +67,19 @@ cargo test -- --nocapture
 
 Gravity has five destinations:
 
-- **Launch** — start a session in a project folder and manage running sessions.
+- **Chat** — talk to Claude Code or Codex inside Gravity, with a per-chat transcript and mid-conversation account switching.
 - **Profiles** — isolated vendor configs, boundary tags, and credentials.
-- **Projects** — folders, default profiles, terminal preference, auto-switch policy.
+- **Projects** — folders, default profiles, terminal preference, auto-switch policy; each row can open a terminal session.
 - **Activity** — append-only session, switch, and rate-limit history.
 - **Settings** — storage paths, feature flags, and CLI diagnostics.
 
-Rate limits are reported by you from a running session. Gravity never reads
+Chat turns run the vendor CLI headlessly with piped stdio and a Job Object per
+turn, so Stop kills the whole process tree. A rate limit in the stream is
+recorded and retried on the next eligible same-vendor account when auto-switch is
+enabled. Switching accounts clears the vendor session id, so the next message
+replays Gravity's transcript instead.
+
+Rate limits are reported by you from a terminal session. Gravity never reads
 another terminal's output, so usage readings stay `Unknown` unless a provider
 exposes a verifiable number. Auto-switch is only reachable when `flags.toml`
 contains `auto_switch = true`; client projects and profiles are always excluded.

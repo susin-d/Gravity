@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"codex-thread-1"}
+{"type":"item.completed","item":{"id":"i1","type":"command_execution","command":"cargo test","status":"completed"}}
+{"type":"item.completed","item":{"id":"i2","type":"agent_message","text":"Tests pass."}}
+{"type":"turn.completed","usage":{"input_tokens":80,"cached_input_tokens":20,"output_tokens":12}}

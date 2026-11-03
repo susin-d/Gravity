@@ -33,7 +33,7 @@ pub async fn maybe_auto_switch(
     // 1. Fetch current session
     let session = sqlx::query_as::<_, Session>(
         r#"
-        SELECT id, profile_id, project_id, pid, started_at, ended_at, exit_code, status
+        SELECT id, profile_id, project_id, pid, started_at, ended_at, exit_code, status, origin
         FROM sessions
         WHERE id = ?1
         "#,
@@ -241,7 +241,8 @@ mod tests {
                 started_at  TEXT NOT NULL,
                 ended_at    TEXT,
                 exit_code   INTEGER,
-                status      TEXT NOT NULL DEFAULT 'running'
+                status      TEXT NOT NULL DEFAULT 'running',
+                origin      TEXT NOT NULL DEFAULT 'terminal'
             );
 
             CREATE TABLE switch_events (
@@ -292,7 +293,7 @@ mod tests {
 
         // Session
         sqlx::query(
-            "INSERT INTO sessions VALUES ('s1', 'p1', 'proj1', 123, ?1, NULL, NULL, 'running')",
+            "INSERT INTO sessions VALUES ('s1', 'p1', 'proj1', 123, ?1, NULL, NULL, 'running', 'terminal')",
         )
         .bind(&now)
         .execute(&pool)
@@ -321,7 +322,7 @@ mod tests {
             .bind(&now).execute(&pool).await.unwrap();
 
         // Session
-        sqlx::query("INSERT INTO sessions VALUES ('s1', 'p_client', 'proj1', 123, ?1, NULL, NULL, 'running')")
+        sqlx::query("INSERT INTO sessions VALUES ('s1', 'p_client', 'proj1', 123, ?1, NULL, NULL, 'running', 'terminal')")
             .bind(&now).execute(&pool).await.unwrap();
 
         let res = maybe_auto_switch(&pool, &mgr, "s1", &flags).await.unwrap();

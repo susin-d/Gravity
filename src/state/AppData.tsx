@@ -27,10 +27,6 @@ interface AppDataValue {
   loading: boolean;
   initialized: boolean;
   error: string | null;
-  launchProjectId: string | null;
-  launchProfileId: string | null;
-  setLaunchProject: (id: string | null) => void;
-  setLaunchProfile: (id: string | null) => void;
   refresh: () => Promise<void>;
   refreshUsage: (profileId: string) => Promise<UsageReading>;
 }
@@ -47,8 +43,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [launchProjectId, setLaunchProjectId] = useState<string | null>(null);
-  const [launchProfileId, setLaunchProfileId] = useState<string | null>(null);
 
   const initializedRef = useRef(false);
 
@@ -82,15 +76,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setError(null);
       setInitialized(true);
       initializedRef.current = true;
-
-      setLaunchProjectId((current) =>
-        nextProjects.some((project) => project.id === current) ? current : null,
-      );
-      setLaunchProfileId((current) =>
-        nextProfiles.some((profile) => profile.id === current)
-          ? current
-          : (nextProfiles[0]?.id ?? null),
-      );
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -101,17 +86,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  const setLaunchProject = useCallback(
-    (id: string | null) => {
-      setLaunchProjectId(id);
-      const project = projects.find((candidate) => candidate.id === id);
-      if (project?.default_profile_id) {
-        setLaunchProfileId(project.default_profile_id);
-      }
-    },
-    [projects],
-  );
 
   const refreshUsage = useCallback(async (profileId: string) => {
     const reading = await api.refreshProfileUsage(profileId);
@@ -130,10 +104,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       loading,
       initialized,
       error,
-      launchProjectId,
-      launchProfileId,
-      setLaunchProject,
-      setLaunchProfile: setLaunchProfileId,
       refresh,
       refreshUsage,
     }),
@@ -147,9 +117,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       loading,
       initialized,
       error,
-      launchProjectId,
-      launchProfileId,
-      setLaunchProject,
       refresh,
       refreshUsage,
     ],

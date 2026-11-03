@@ -48,7 +48,17 @@ pub async fn suggest_switch(
         .await?
         .ok_or_else(|| anyhow::anyhow!("Source profile {} not found", from_profile_id))?;
 
-    // Query active same-vendor non-client profiles, sorted by MRU session started_at
+    let candidates = switch_candidates(pool, &from_profile.vendor, &[from_profile.id]).await?;
+    Ok(candidates.into_iter().next())
+}
+
+/// Ordered same-vendor, non-client candidates for a switch, skipping profiles
+/// that have already been tried in the current turn.
+pub async fn switch_candidates(
+    pool: &SqlitePool,
+    vendor: &str,
+    exclude: &[String],
+) -> anyhow::Result<Vec<Profile>> {
     let candidates = sqlx::query_as::<_, Profile>(
         r#"
         SELECT p.id, p.label, p.vendor, p.tag, p.config_dir, p.cred_ref, p.created_at, p.updated_at, p.is_active
@@ -60,18 +70,18 @@ pub async fn suggest_switch(
         ) s ON p.id = s.profile_id
         WHERE p.is_active = 1
           AND p.vendor = ?1
-          AND p.id != ?2
           AND p.tag != 'client'
         ORDER BY s.last_used DESC NULLS LAST, p.created_at DESC
-        LIMIT 1
         "#,
     )
-    .bind(&from_profile.vendor)
-    .bind(from_profile_id)
-    .fetch_optional(pool)
+    .bind(vendor)
+    .fetch_all(pool)
     .await?;
 
-    Ok(candidates)
+    Ok(candidates
+        .into_iter()
+        .filter(|profile| !exclude.contains(&profile.id))
+        .collect())
 }
 
 /// Record a switch event record in SQLite (guarantees AC-11: exactly one row per switch attempt).
@@ -298,7 +308,8 @@ mod tests {
                 started_at  TEXT NOT NULL,
                 ended_at    TEXT,
                 exit_code   INTEGER,
-                status      TEXT NOT NULL DEFAULT 'running'
+                status      TEXT NOT NULL DEFAULT 'running',
+                origin      TEXT NOT NULL DEFAULT 'terminal'
             );
 
             CREATE TABLE switch_events (
@@ -338,13 +349,13 @@ mod tests {
         // Profile 3: Personal 1 (older session)
         sqlx::query("INSERT INTO profiles VALUES ('p3', 'Claude Personal 1', 'claude', 'personal', 'C:/p3', 'g:p3', ?1, ?1, 1)")
             .bind(&now).execute(&pool).await.unwrap();
-        sqlx::query("INSERT INTO sessions VALUES ('s1', 'p3', NULL, 100, '2026-01-01T10:00:00Z', NULL, NULL, 'running')")
+        sqlx::query("INSERT INTO sessions VALUES ('s1', 'p3', NULL, 100, '2026-01-01T10:00:00Z', NULL, NULL, 'running', 'terminal')")
             .execute(&pool).await.unwrap();
 
         // Profile 4: Personal 2 (most recently used session!)
         sqlx::query("INSERT INTO profiles VALUES ('p4', 'Claude Personal 2', 'claude', 'personal', 'C:/p4', 'g:p4', ?1, ?1, 1)")
             .bind(&now).execute(&pool).await.unwrap();
-        sqlx::query("INSERT INTO sessions VALUES ('s2', 'p4', NULL, 101, '2026-01-01T12:00:00Z', NULL, NULL, 'running')")
+        sqlx::query("INSERT INTO sessions VALUES ('s2', 'p4', NULL, 101, '2026-01-01T12:00:00Z', NULL, NULL, 'running', 'terminal')")
             .execute(&pool).await.unwrap();
 
         // Profile 5: Codex Personal (must be excluded because different vendor)

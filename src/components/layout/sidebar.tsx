@@ -1,7 +1,7 @@
 import {
   Activity,
   FolderKanban,
-  Rocket,
+  MessageSquare,
   Settings as SettingsIcon,
   Users,
   Zap,
@@ -17,7 +17,7 @@ interface NavItem {
 }
 
 const items: NavItem[] = [
-  { id: "launch", label: "Launch", icon: Rocket },
+  { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "profiles", label: "Profiles", icon: Users },
   { id: "projects", label: "Projects", icon: FolderKanban },
   { id: "activity", label: "Activity", icon: Activity },
@@ -69,7 +69,7 @@ export function Sidebar({
         {runningCount > 0 && (
           <button
             type="button"
-            onClick={() => onNavigate("launch")}
+            onClick={() => onNavigate("chat")}
             title={`${runningCount} running session${runningCount === 1 ? "" : "s"}`}
             className="flex w-full items-center gap-3 rounded px-2.5 py-2 text-xs text-ink-muted transition-colors hover:bg-raised/60 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 max-[900px]:justify-center max-[900px]:px-0"
           >

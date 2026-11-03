@@ -7,7 +7,6 @@ pub const HANDOFF_TOKEN_BUDGET: usize = 24_000;
 
 pub struct Handoff {
     pub text: String,
-    pub included: usize,
     pub omitted: usize,
 }
 
@@ -84,11 +83,7 @@ Do not restate the transcript.\n\n<transcript>\n{}\n</transcript>",
         transcript
     );
 
-    Some(Handoff {
-        text,
-        included: kept_recent.len() + 1,
-        omitted,
-    })
+    Some(Handoff { text, omitted })
 }
 
 #[cfg(test)]

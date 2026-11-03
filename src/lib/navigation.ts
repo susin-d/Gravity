@@ -1,7 +1,7 @@
-export type PageId = "launch" | "profiles" | "projects" | "activity" | "settings";
+export type PageId = "chat" | "profiles" | "projects" | "activity" | "settings";
 
 export const pageTitles: Record<PageId, string> = {
-  launch: "Launch",
+  chat: "Chat",
   profiles: "Profiles",
   projects: "Projects",
   activity: "Activity",

@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { FolderKanban, Pencil, Plus, Rocket, Trash2 } from "lucide-react";
 import { api, errorMessage } from "../lib/api";
-import type { Project } from "../lib/types";
+import type { Profile, Project } from "../lib/types";
 import { tagLabel, terminalLabel } from "../lib/format";
-import type { PageId } from "../lib/navigation";
 import { useAppData } from "../state/AppData";
 import { Badge, tagBadgeVariant } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -21,13 +20,10 @@ import {
   th,
 } from "../components/ui/table";
 import { useToast } from "../components/ui/toast";
+import { ClientBoundaryModal } from "../components/client-boundary-modal";
 import { ProjectDialog } from "../components/project-dialog";
 
-export interface ProjectsPageProps {
-  onNavigate: (page: PageId) => void;
-}
-
-export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
+export function ProjectsPage() {
   const {
     projects,
     profiles,
@@ -35,7 +31,6 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
     terminalAvailable,
     loading,
     refresh,
-    setLaunchProject,
   } = useAppData();
   const { toast } = useToast();
 
@@ -44,6 +39,11 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [launchingId, setLaunchingId] = useState<string | null>(null);
+  const [pendingClient, setPendingClient] = useState<{
+    project: Project;
+    profile: Profile;
+  } | null>(null);
 
   const autoSwitchFlag = settings?.flags.auto_switch === true;
 
@@ -82,9 +82,60 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
     }
   }
 
+  async function spawnTerminal(
+    project: Project,
+    profile: Profile,
+    clientConfirmed: boolean,
+  ) {
+    setLaunchingId(project.id);
+    try {
+      await api.spawnSession({
+        profile_id: profile.id,
+        project_path: null,
+        project_id: project.id,
+        client_confirmed: clientConfirmed,
+      });
+      setPendingClient(null);
+      await refresh();
+      toast({
+        variant: "success",
+        title: "Terminal session started",
+        description: `${profile.label} · ${project.name}`,
+      });
+    } catch (cause) {
+      toast({
+        variant: "error",
+        title: "Could not start the session",
+        description: errorMessage(cause),
+      });
+    } finally {
+      setLaunchingId(null);
+    }
+  }
+
   function handleLaunch(project: Project) {
-    setLaunchProject(project.id);
-    onNavigate("launch");
+    const profile = project.default_profile_id
+      ? profiles.find(
+          (candidate) => candidate.id === project.default_profile_id,
+        )
+      : null;
+
+    if (!profile) {
+      toast({
+        variant: "error",
+        title: "No default profile",
+        description:
+          "Set a default profile for this project before opening a terminal session.",
+      });
+      return;
+    }
+
+    if (profile.tag === "client") {
+      setPendingClient({ project, profile });
+      return;
+    }
+
+    void spawnTerminal(project, profile, false);
   }
 
   return (
@@ -208,9 +259,11 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
                         <Button
                           variant="ghost"
                           size="icon"
+                          loading={launchingId === project.id}
+                          disabled={launchingId === project.id}
                           onClick={() => handleLaunch(project)}
-                          aria-label={`Launch in ${project.name}`}
-                          title="Launch in this project"
+                          aria-label={`Open a terminal session in ${project.name}`}
+                          title="Open a terminal session in this project"
                         >
                           <Rocket className="h-3.5 w-3.5" aria-hidden />
                         </Button>
@@ -263,6 +316,23 @@ export function ProjectsPage({ onNavigate }: ProjectsPageProps) {
         loading={deleting}
         onConfirm={() => void handleDelete()}
       />
+
+      {pendingClient && (
+        <ClientBoundaryModal
+          open
+          targetProfile={pendingClient.profile}
+          projectName={pendingClient.project.name}
+          loading={launchingId === pendingClient.project.id}
+          onConfirm={() =>
+            void spawnTerminal(
+              pendingClient.project,
+              pendingClient.profile,
+              true,
+            )
+          }
+          onCancel={() => setPendingClient(null)}
+        />
+      )}
     </div>
   );
 }

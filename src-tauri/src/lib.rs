@@ -1,5 +1,6 @@
 pub mod adapters;
 pub mod auto_switch;
+pub mod chat;
 pub mod commands;
 pub mod db;
 pub mod flags;
@@ -62,7 +63,6 @@ pub fn run() {
     info!("Feature flags: {:?}", flags);
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
         .setup(move |app| {
             let app_data = app_data_dir.clone();
             let handle = app.handle().clone();
@@ -122,6 +122,14 @@ pub fn run() {
             commands::execute_profile_switch,
             commands::record_switch_cancellation,
             commands::list_switch_events,
+            commands::create_chat,
+            commands::list_chats,
+            commands::get_chat,
+            commands::send_message,
+            commands::cancel_turn,
+            commands::delete_chat,
+            commands::update_chat,
+            commands::switch_chat_profile,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Gravity");
