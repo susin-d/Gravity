@@ -5,7 +5,7 @@ use crate::chat::one_line as chat_one_line;
 use crate::chat::{LimitSignal, ParsedChunk, ToolRecord, TurnUsage};
 
 fn detect_limit(text: &str) -> Option<LimitSignal> {
-    ProviderAdapter::new()
+    crate::adapters::codex::CodexAdapter::new()
         .detect_limit(text, None)
         .map(|result| LimitSignal {
             raw_signal: result.raw_signal,
@@ -50,10 +50,7 @@ fn tool_from_item(item: &Value) -> Option<ToolRecord> {
         }
         "mcp_tool_call" => {
             let server = item.get("server").and_then(Value::as_str).unwrap_or("mcp");
-            let tool = item
-                .get("tool")
-                .and_then(Value::as_str)
-                .unwrap_or("tool");
+            let tool = item.get("tool").and_then(Value::as_str).unwrap_or("tool");
             Some(ToolRecord {
                 name: "MCP".to_string(),
                 summary: format!("MCP: {server}/{tool}"),
@@ -161,7 +158,8 @@ mod tests {
         let started = r#"{"type":"thread.started","thread_id":"thread-1"}"#;
         assert_eq!(parse_line(started).session_id.as_deref(), Some("thread-1"));
 
-        let message = r#"{"type":"item.completed","item":{"id":"i1","type":"agent_message","text":"Hello"}}"#;
+        let message =
+            r#"{"type":"item.completed","item":{"id":"i1","type":"agent_message","text":"Hello"}}"#;
         let chunk = parse_line(message);
         assert_eq!(chunk.text_delta.as_deref(), Some("Hello"));
         assert_eq!(chunk.final_text.as_deref(), Some("Hello"));
@@ -192,5 +190,37 @@ mod tests {
     fn detects_error_rate_limit() {
         let line = r#"{"type":"error","message":"Rate limit reached for this account"}"#;
         assert!(parse_line(line).limit.is_some());
+    }
+
+    #[test]
+    fn parses_the_stream_fixture_end_to_end() {
+        let fixture = include_str!("../../fixtures/codex_stream.jsonl");
+        let mut session_id = None;
+        let mut text = String::new();
+        let mut tools = Vec::new();
+        let mut usage = None;
+
+        for line in fixture.lines() {
+            let chunk = parse_line(line);
+            if let Some(id) = chunk.session_id {
+                session_id = Some(id);
+            }
+            if let Some(delta) = chunk.text_delta {
+                text.push_str(&delta);
+            }
+            tools.extend(chunk.tools);
+            if chunk.usage.is_some() {
+                usage = chunk.usage;
+            }
+        }
+
+        assert_eq!(session_id.as_deref(), Some("codex-thread-1"));
+        assert_eq!(text, "Tests pass.");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].summary, "Bash: cargo test");
+        let usage = usage.expect("usage");
+        assert_eq!(usage.input_tokens, Some(80));
+        assert_eq!(usage.cache_read_tokens, Some(20));
+        assert_eq!(usage.output_tokens, Some(12));
     }
 }

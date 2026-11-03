@@ -45,6 +45,117 @@ export interface Session {
   ended_at: string | null;
   exit_code: number | null;
   status: SessionStatus;
+  origin: "terminal" | "chat";
+}
+
+export type ChatRole = "user" | "assistant" | "tool" | "system";
+
+export interface Chat {
+  id: string;
+  title: string;
+  vendor: Vendor;
+  profile_id: string;
+  project_id: string | null;
+  permission_mode: string;
+  carry_context: boolean;
+  cli_session_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  chat_id: string;
+  role: ChatRole;
+  content: string;
+  meta: string | null;
+  created_at: string;
+}
+
+export interface ChatDetail {
+  chat: Chat;
+  messages: ChatMessage[];
+}
+
+export interface ChatCapabilities {
+  available: boolean;
+  supports_stream: boolean;
+  supports_permission_mode: boolean;
+  supports_resume: boolean;
+  detail: string;
+}
+
+export interface ChatToolRecord {
+  name: string;
+  summary: string;
+}
+
+export interface ChatUsage {
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cache_read_tokens: number | null;
+  cache_write_tokens: number | null;
+  cost_usd: number | null;
+}
+
+export interface ChatMessageMeta {
+  profile_id: string;
+  usage: ChatUsage | null;
+  tools: ChatToolRecord[];
+}
+
+export interface ChatDeltaEvent {
+  chat_id: string;
+  turn_id: string;
+  delta: string;
+}
+
+export interface ChatToolEvent {
+  chat_id: string;
+  turn_id: string;
+  tools: ChatToolRecord[];
+}
+
+export interface ChatDoneEvent {
+  chat_id: string;
+  turn_id: string;
+  usage: ChatUsage | null;
+}
+
+export interface ChatErrorEvent {
+  chat_id: string;
+  turn_id: string;
+  error: string;
+}
+
+export interface ChatLimitEvent {
+  chat_id: string;
+  turn_id: string;
+  raw_signal: string;
+  detail: string;
+}
+
+export interface ChatSwitchEvent {
+  chat_id: string;
+  turn_id: string;
+  from_profile_id: string;
+  to_profile_id: string;
+  detail: string;
+}
+
+export interface CreateChatInput {
+  title: string;
+  vendor: Vendor;
+  profile_id: string;
+  project_id: string | null;
+  permission_mode: string;
+  carry_context: boolean;
+}
+
+export interface UpdateChatInput {
+  title?: string;
+  permission_mode?: string;
+  carry_context?: boolean;
 }
 
 export interface UsageReading {
@@ -102,6 +213,8 @@ export interface AdapterHealth {
 export interface AdaptersHealthReport {
   claude: AdapterHealth;
   codex: AdapterHealth;
+  claude_chat: ChatCapabilities;
+  codex_chat: ChatCapabilities;
 }
 
 export interface SwitchExecutionResult {

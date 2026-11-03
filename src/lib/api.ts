@@ -2,6 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AdaptersHealthReport,
   AppSettings,
+  Chat,
+  ChatDetail,
+  CreateChatInput,
   CreateProfileInput,
   CreateProjectInput,
   CredentialStatus,
@@ -13,6 +16,7 @@ import type {
   SpawnSessionInput,
   SwitchEvent,
   SwitchExecutionResult,
+  UpdateChatInput,
   UpdateProfileInput,
   UpdateProjectInput,
   UsageReading,
@@ -78,6 +82,27 @@ export const api = {
     reason: "manual" | "limit" | "auto";
     detail: string;
   }) => invoke<SwitchEvent>("record_switch_cancellation", input),
+
+  listChats: () => invoke<Chat[]>("list_chats"),
+  createChat: (input: CreateChatInput) => invoke<Chat>("create_chat", { input }),
+  getChat: (chatId: string) => invoke<ChatDetail>("get_chat", { chatId }),
+  updateChat: (chatId: string, input: UpdateChatInput) =>
+    invoke<Chat>("update_chat", {
+      chatId,
+      title: input.title,
+      permissionMode: input.permission_mode,
+      carryContext: input.carry_context,
+    }),
+  deleteChat: (chatId: string) => invoke<void>("delete_chat", { chatId }),
+  switchChatProfile: (chatId: string, toProfileId: string, clientConfirmed: boolean) =>
+    invoke<Chat>("switch_chat_profile", {
+      chatId,
+      toProfileId,
+      clientConfirmed,
+    }),
+  sendMessage: (input: { chat_id: string; content: string }) =>
+    invoke<string>("send_message", { input }),
+  cancelTurn: (turnId: string) => invoke<boolean>("cancel_turn", { turnId }),
 };
 
 export function errorMessage(error: unknown): string {

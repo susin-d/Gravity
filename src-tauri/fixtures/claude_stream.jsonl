@@ -1,0 +1,5 @@
+{"type":"system","subtype":"init","session_id":"claude-session-1"}
+{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"I'll read "}}}
+{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"the file."}}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"I'll read the file."},{"type":"tool_use","name":"Read","input":{"file_path":"src/main.rs"}}]}}
+{"type":"result","subtype":"success","session_id":"claude-session-1","result":"I'll read the file.","total_cost_usd":0.0123,"usage":{"input_tokens":120,"output_tokens":45,"cache_read_input_tokens":30}}

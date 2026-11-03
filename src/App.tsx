@@ -8,13 +8,13 @@ import { Button } from "./components/ui/button";
 import { Skeleton } from "./components/ui/skeleton";
 import { Titlebar } from "./components/layout/titlebar";
 import { Sidebar } from "./components/layout/sidebar";
-import { LaunchPage } from "./pages/Launch";
+import { ChatPage } from "./pages/Chat";
 import { ProfilesPage } from "./pages/Profiles";
 import { ProjectsPage } from "./pages/Projects";
 import { ActivityPage } from "./pages/Activity";
 import { SettingsPage } from "./pages/Settings";
 
-const pages: PageId[] = ["launch", "profiles", "projects", "activity", "settings"];
+const pages: PageId[] = ["chat", "profiles", "projects", "activity", "settings"];
 
 function LoadingShell() {
   return (
@@ -51,7 +51,7 @@ function ErrorShell({ message, onRetry }: { message: string; onRetry: () => void
 
 function AppShell() {
   const { sessions, settings, loading, initialized, error, refresh } = useAppData();
-  const [page, setPage] = useState<PageId>("launch");
+  const [page, setPage] = useState<PageId>("chat");
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -104,9 +104,9 @@ function AppShell() {
             autoSwitchEnabled={settings?.flags.auto_switch === true}
           />
 
-          <main className="min-w-0 flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-5xl space-y-4 p-6">
-              {error && (
+          <main className="flex min-w-0 flex-1 flex-col">
+            {error && (
+              <div className="mx-auto w-full max-w-5xl px-6 pt-6">
                 <Banner
                   variant="danger"
                   title="Could not refresh data"
@@ -122,14 +122,21 @@ function AppShell() {
                 >
                   {error}
                 </Banner>
-              )}
+              </div>
+            )}
 
-              {page === "launch" && <LaunchPage onNavigate={setPage} />}
-              {page === "profiles" && <ProfilesPage />}
-              {page === "projects" && <ProjectsPage onNavigate={setPage} />}
-              {page === "activity" && <ActivityPage />}
-              {page === "settings" && <SettingsPage />}
-            </div>
+            {page === "chat" ? (
+              <ChatPage onNavigate={setPage} />
+            ) : (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="mx-auto w-full max-w-5xl space-y-4 p-6">
+                  {page === "profiles" && <ProfilesPage />}
+                  {page === "projects" && <ProjectsPage />}
+                  {page === "activity" && <ActivityPage onNavigate={setPage} />}
+                  {page === "settings" && <SettingsPage />}
+                </div>
+              </div>
+            )}
           </main>
         </div>
       )}

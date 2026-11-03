@@ -49,7 +49,7 @@ When working on this codebase:
 
 | Area | Choice | Version / Notes |
 |---|---|---|
-| **App Framework** | Tauri 2 | `tauri = "^2"`, `tauri-plugin-shell = "^2"` |
+| **App Framework** | Tauri 2 | `tauri = "^2"` |
 | **Frontend** | React 18 + TypeScript 5 | Tailwind CSS 3, Vite 6 |
 | **Backend** | Rust (2021 edition) | Tokio async runtime |
 | **Database** | SQLite via `sqlx` | Version 0.8 with `runtime-tokio`, compile-time migrations |
@@ -78,16 +78,16 @@ c:\project\Gravity\
 │   ├── main.tsx              ← React root mount
 │   ├── index.css             ← Tailwind directives & custom drag regions
 │   ├── components/           ← Reusable UI components
-│   │   ├── UsageBadge.tsx    ← Official/Estimated/Unknown usage badges
-│   │   ├── LimitToast.tsx    ← Non-blocking rate limit notification
-│   │   ├── ClientBoundaryModal.tsx ← Modal for entering/leaving client profiles
-│   │   └── AutoSwitchBanner.tsx    ← Armed/Triggered banner for auto-switch
+│   │   ├── chat/
+│   │   │   └── new-chat-dialog.tsx ← Profile, project, and permission picker
+│   │   ├── ui/               ← Badges, buttons, dialogs, fields, toasts
+│   │   └── client-boundary-modal.tsx ← Client confirmation before entering or leaving client accounts
 │   └── pages/                ← Views
-│       ├── Settings.tsx      ← Database location, feature flags status
-│       ├── Projects.tsx      ← Project registry, tag assigner, terminal picker
-│       ├── History.tsx       ← Audit timeline of sessions, limits, and switches
-│       ├── AdapterHealth.tsx ← Health status of Claude & Codex adapters
-│       └── AutoSwitchConsent.tsx ← M6 flag-gated allowlist consent screen
+│       ├── Chat.tsx          ← Chat surface, transcript, composer, streaming
+│       ├── Profiles.tsx      ← Profile registry and credentials
+│       ├── Projects.tsx      ← Project registry and terminal launch
+│       ├── Activity.tsx      ← Sessions, limit events, and switch audit
+│       └── Settings.tsx      ← Database location and feature flags
 └── src-tauri/                ← Rust Backend
     ├── Cargo.toml            ← Rust manifest
     ├── tauri.conf.json       ← Tauri 2 window & tray configuration

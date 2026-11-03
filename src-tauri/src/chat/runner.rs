@@ -1,141 +1,370 @@
+use std::path::Path;
+use std::process::Stdio;
 use std::sync::Arc;
 
-use chrono::Utc;
-use tracing::info;
-use uuid::Uuid;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::Command;
 
-use crate::process::OwnedJobObject;
-use crate::chat::append_message;
-use crate::adapters::ProviderAdapter;
-use crate::flags::FeatureFlags;
-use crate::usage::RecordUsageInput;
-use crate::db::Db;
-use crate::profiles::get_secret;
-use crate::projects;
-use crate::switching::{self, SwitchReason, SwitchOutcome};
+use crate::adapters::find_cli;
+use crate::chat::{ChatStreamEvent, LimitSignal, ParsedChunk, ToolRecord, TurnUsage};
+use crate::process::{OwnedJobObject, ProcessManager};
+use crate::profiles::Profile;
 
-/// Spawn and stream one chat turn for the given profile.
-pub async fn spawn_turn(
-    pool: &sqlx::SqlitePool,
-    db: &Db,
-    profile: &crate::profiles::Profile,
-    project: Option<&crate::projects::Project>,
-    flags: &FeatureFlags,
-    mut input: impl FnMut(String),
-) -> anyhow::Result<Option<(RecordUsageInput, Option<crate::chat::ParsedChunk>)>> {
-    let env_map: std::collections::HashMap<String, String> =
-        crate::profiles::build_env_block(profile, None).into_iter().collect();
-
-    let session_id = Uuid::new_v4().to_string();
-    let turn_id = Uuid::new_v4().to_string();
-
-    let project_path = project.map(|p| p.path.clone());
-    let target_dir: String = if let Some(dir) = &project_path {
-        dir.clone()
-    } else {
-        dirs::home_dir()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string()
-    };
-
-    // Create job object + spawn process
-    let job = Arc::new(
-        crate::process::OwnedJobObject::new()
-            .map_err(|e| anyhow::anyhow!("Failed to create Job Object: {e}"))?,
-    );
-
-    let cli_cmd = match profile.vendor.as_str() {
-        "claude" => format!(
-            "claude -p --output-format stream-json --verbose -p '{}'",
-            std::env::var("CLAUDE_CONFIG_DIR").unwrap_or_default()
-        ),
-        "codex" => format!("codex exec -"),
-        other => return Err(anyhow::anyhow!("Unsupported vendor: {}", other)),
-    };
-
-    info!(
-        "Spawned chat turn {} for {} session {}",
-        turn_id,
-        profile.vendor,
-        session_id
-    );
-
-    // Send first chunk via input callback
-    let first_chunk = Some((RecordUsageInput::default(), None));
-    if let Some((usage, parsed)) = first_chunk {
-        let _ = input(serde_json::to_string(&parsed).unwrap_or_default());
-    }
-
-    // Record session + chat
-    let now = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-    sqlx::query(
-        r#"INSERT INTO sessions (id, profile_id, project_id, pid, started_at, status, origin)
-        VALUES (?1, ?2, ?3, ?4, ?5, 'running', 'chat')"#,
-    )
-    .bind(&session_id)
-    .bind(&profile.id)
-    .bind(&project_path)
-    .bind(-1i64)
-    .bind(&now)
-    .execute(pool)
-    .await?;
-
-    Ok(Some((usage, parsed)))
+/// Everything one turn needs. Owned so the caller can retry the same turn on a
+/// different profile without rebuilding it from the database.
+pub struct TurnRequest {
+    pub profile: Profile,
+    pub prompt: String,
+    pub resume: Option<String>,
+    pub permission_mode: String,
+    pub project_path: Option<String>,
 }
 
-/// Record a detected rate limit event and mark this turn for auto-switch.
-pub async fn handle_limit(
-    pool: &sqlx::SqlitePool,
-    db: &Db,
-    chat_id: &str,
-    session_id: &str,
-    raw_signal: String,
-    detail: String,
-) -> anyhow::Result<()> {
-    let event = crate::adapters::record_limit_event(
-        pool,
-        session_id,
-        &session_id,
-        "stdout",
-        &raw_signal,
-        Some(&detail),
-    )
-    .await?;
+#[derive(Debug, Default)]
+pub struct TurnOutcome {
+    pub session_id: Option<String>,
+    pub text: String,
+    pub usage: Option<TurnUsage>,
+    pub tools: Vec<ToolRecord>,
+    pub limit: Option<LimitSignal>,
+    pub cancelled: bool,
+    streamed: bool,
+}
 
-    // Determine eligible MRU target profile (same vendor, not client)
-    let target = switching::suggest_switch(pool, &session_id).await?;
+/// Vendor-specific arguments. Kept pure so the CLI contract is testable
+/// without either CLI installed.
+fn cli_args(vendor: &str, permission_mode: &str, resume: Option<&str>) -> Vec<String> {
+    match vendor {
+        "claude" => {
+            let mut args = vec![
+                "-p".to_string(),
+                "--output-format".to_string(),
+                "stream-json".to_string(),
+                "--verbose".to_string(),
+                "--permission-mode".to_string(),
+                permission_mode.to_string(),
+            ];
+            if let Some(id) = resume {
+                args.push("--resume".to_string());
+                args.push(id.to_string());
+            }
+            args
+        }
+        "codex" => {
+            let mut args = vec!["exec".to_string()];
+            if let Some(id) = resume {
+                args.push("resume".to_string());
+                args.push(id.to_string());
+            }
+            args.push("--json".to_string());
+            args.push("--sandbox".to_string());
+            args.push(permission_mode.to_string());
+            // `-` reads the prompt from stdin, avoiding command-line length limits.
+            args.push("-".to_string());
+            args
+        }
+        _ => Vec::new(),
+    }
+}
 
-    if let Some(target) = target {
-        let secret = get_secret(&target.id)?;
-        let reason = SwitchReason::limit;
-        let outcome = if target.tag == "client" {
-            SwitchOutcome::blocked_client_auto
-        } else if target.vendor == "claude" || target.vendor == "codex" {
-            SwitchOutcome::completed
+fn build_command(cli: &Path) -> Command {
+    let ext = cli
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    match ext.as_str() {
+        "cmd" | "bat" => {
+            let mut command = Command::new("cmd.exe");
+            command.arg("/c").arg(cli);
+            command
+        }
+        "ps1" => {
+            let mut command = Command::new("powershell.exe");
+            command.arg("-NoProfile").arg("-File").arg(cli);
+            command
+        }
+        _ => Command::new(cli),
+    }
+}
+
+fn parse_chunk(vendor: &str, line: &str) -> ParsedChunk {
+    match vendor {
+        "claude" => crate::chat::claude::parse_line(line),
+        "codex" => crate::chat::codex::parse_line(line),
+        _ => ParsedChunk::default(),
+    }
+}
+
+fn apply_chunk(
+    outcome: &mut TurnOutcome,
+    chunk: ParsedChunk,
+    emit: &mut impl FnMut(ChatStreamEvent),
+) {
+    if let Some(id) = chunk.session_id {
+        outcome.session_id = Some(id);
+    }
+
+    if let Some(delta) = chunk.text_delta {
+        outcome.text.push_str(&delta);
+        outcome.streamed = true;
+        emit(ChatStreamEvent::Delta(delta));
+    } else if let Some(text) = chunk.final_text {
+        // Consolidated messages repeat text that was already streamed. Only use
+        // them when the vendor never emitted incremental deltas.
+        if !outcome.streamed {
+            outcome.text.push_str(&text);
+            outcome.streamed = true;
+            emit(ChatStreamEvent::Delta(text));
+        }
+    }
+
+    if !chunk.tools.is_empty() {
+        outcome.tools.extend(chunk.tools.iter().cloned());
+        emit(ChatStreamEvent::Tools(chunk.tools));
+    }
+
+    if chunk.usage.is_some() {
+        outcome.usage = chunk.usage;
+    }
+
+    if outcome.limit.is_none() {
+        if let Some(limit) = chunk.limit {
+            outcome.limit = Some(limit.clone());
+            emit(ChatStreamEvent::Limit(limit));
+        }
+    }
+}
+
+/// Run one turn against the vendor CLI and stream parsed output to `emit`.
+///
+/// The child is placed in a Win32 Job Object keyed by `turn_id`, so cancelling
+/// the turn (or Gravity exiting) terminates the whole process tree.
+pub async fn run_turn(
+    manager: &ProcessManager,
+    turn_id: &str,
+    request: &TurnRequest,
+    mut emit: impl FnMut(ChatStreamEvent),
+) -> anyhow::Result<TurnOutcome> {
+    let vendor = request.profile.vendor.as_str();
+    let cli = find_cli(vendor).ok_or_else(|| anyhow::anyhow!("{vendor} CLI not found on PATH"))?;
+
+    let secret = crate::profiles::get_secret(&request.profile.id)?;
+    let env = crate::profiles::build_env_block(&request.profile, secret.as_deref());
+
+    let working_dir = request
+        .project_path
+        .clone()
+        .or_else(|| dirs::home_dir().map(|path| path.to_string_lossy().to_string()))
+        .unwrap_or_else(|| "C:\\".to_string());
+
+    let mut command = build_command(&cli);
+    command
+        .args(cli_args(
+            vendor,
+            &request.permission_mode,
+            request.resume.as_deref(),
+        ))
+        .current_dir(&working_dir)
+        .env_clear()
+        .envs(&env)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    let mut child = command
+        .spawn()
+        .map_err(|error| anyhow::anyhow!("Failed to start {vendor}: {error}"))?;
+
+    let pid = child
+        .id()
+        .ok_or_else(|| anyhow::anyhow!("{vendor} started without a process id"))?;
+
+    let job = Arc::new(
+        OwnedJobObject::new()
+            .map_err(|error| anyhow::anyhow!("Failed to create Job Object: {error}"))?,
+    );
+    job.assign_pid(pid)
+        .map_err(|error| anyhow::anyhow!("Failed to assign {vendor} to Job Object: {error}"))?;
+    manager.register_job(turn_id.to_string(), job);
+
+    if let Some(mut stdin) = child.stdin.take() {
+        // A broken pipe here means the CLI exited before reading the prompt.
+        // The exit status and stderr below carry the real diagnosis.
+        let _ = stdin.write_all(request.prompt.as_bytes()).await;
+        let _ = stdin.shutdown().await;
+    }
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("{vendor} stdout is not piped"))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("{vendor} stderr is not piped"))?;
+
+    let stderr_task = tokio::spawn(async move {
+        let mut buffer = String::new();
+        let mut lines = BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            buffer.push_str(&line);
+            buffer.push('\n');
+        }
+        buffer
+    });
+
+    let mut outcome = TurnOutcome::default();
+    let mut lines = BufReader::new(stdout).lines();
+    while let Some(line) = lines.next_line().await? {
+        apply_chunk(&mut outcome, parse_chunk(vendor, &line), &mut emit);
+    }
+
+    let status = child.wait().await?;
+    let stderr_text = stderr_task.await.unwrap_or_default();
+    manager.unregister_job(turn_id);
+
+    if outcome.limit.is_none() {
+        for line in stderr_text.lines() {
+            let chunk = parse_chunk(vendor, line);
+            if chunk.limit.is_some() {
+                apply_chunk(&mut outcome, chunk, &mut emit);
+                break;
+            }
+        }
+    }
+
+    if manager.take_cancelled(turn_id) {
+        outcome.cancelled = true;
+        return Ok(outcome);
+    }
+
+    if !status.success() && outcome.text.trim().is_empty() && outcome.limit.is_none() {
+        let detail = stderr_text.trim();
+        return Err(anyhow::anyhow!(if detail.is_empty() {
+            format!("{vendor} exited with {status}")
         } else {
-            SwitchOutcome::completed
-        };
+            format!("{vendor} exited with {status}: {detail}")
+        }));
+    }
 
-        let switch_event = switching::record_switch_event(
-            pool,
-            Some(session_id),
-            &session_id,
-            &target.id,
-            &chat_id,
-            &reason,
-            &outcome,
-            Some(&target.id),
-            Some(&format!("Rate limit switched from {} to {}", session_id, target.id)),
-        )
-        .await?;
+    Ok(outcome)
+}
 
-        info!(
-            "Auto-switched from {} to {} on rate boundary",
-            session_id,
-            target.id
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn claude_args_default_to_plan_mode() {
+        let args = cli_args("claude", "plan", None);
+        assert_eq!(
+            args,
+            vec![
+                "-p",
+                "--output-format",
+                "stream-json",
+                "--verbose",
+                "--permission-mode",
+                "plan"
+            ]
         );
     }
 
-    Ok(())
+    #[test]
+    fn claude_args_resume_with_session_id() {
+        let args = cli_args("claude", "acceptEdits", Some("abc"));
+        assert_eq!(args[args.len() - 2], "--resume");
+        assert_eq!(args[args.len() - 1], "abc");
+    }
+
+    #[test]
+    fn codex_args_read_prompt_from_stdin() {
+        let args = cli_args("codex", "read-only", None);
+        assert_eq!(args, vec!["exec", "--json", "--sandbox", "read-only", "-"]);
+    }
+
+    #[test]
+    fn codex_args_resume_places_subcommand_before_flags() {
+        let args = cli_args("codex", "workspace-write", Some("thread-1"));
+        assert_eq!(
+            args,
+            vec![
+                "exec",
+                "resume",
+                "thread-1",
+                "--json",
+                "--sandbox",
+                "workspace-write",
+                "-"
+            ]
+        );
+    }
+
+    #[test]
+    fn streamed_deltas_win_over_consolidated_text() {
+        let mut outcome = TurnOutcome::default();
+        let mut events = Vec::new();
+        apply_chunk(
+            &mut outcome,
+            ParsedChunk {
+                text_delta: Some("Hel".to_string()),
+                ..Default::default()
+            },
+            &mut |event| events.push(event),
+        );
+        apply_chunk(
+            &mut outcome,
+            ParsedChunk {
+                text_delta: Some("lo".to_string()),
+                final_text: Some("Hello".to_string()),
+                ..Default::default()
+            },
+            &mut |event| events.push(event),
+        );
+
+        assert_eq!(outcome.text, "Hello");
+        assert_eq!(events.len(), 2);
+    }
+
+    #[test]
+    fn consolidated_text_is_used_when_vendor_never_streams() {
+        let mut outcome = TurnOutcome::default();
+        let mut events = Vec::new();
+        apply_chunk(
+            &mut outcome,
+            ParsedChunk {
+                final_text: Some("Done".to_string()),
+                ..Default::default()
+            },
+            &mut |event| events.push(event),
+        );
+
+        assert_eq!(outcome.text, "Done");
+        assert_eq!(events.len(), 1);
+    }
+
+    #[test]
+    fn limit_is_emitted_once() {
+        let mut outcome = TurnOutcome::default();
+        let mut events = 0;
+        let limit = LimitSignal {
+            raw_signal: "429".to_string(),
+            detail: "rate limited".to_string(),
+        };
+        for _ in 0..2 {
+            apply_chunk(
+                &mut outcome,
+                ParsedChunk {
+                    limit: Some(limit.clone()),
+                    ..Default::default()
+                },
+                &mut |_| events += 1,
+            );
+        }
+
+        assert_eq!(events, 1);
+        assert!(outcome.limit.is_some());
+    }
 }

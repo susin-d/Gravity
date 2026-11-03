@@ -17,8 +17,8 @@ use windows::Win32::System::JobObjects::{
     JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
 };
 use windows::Win32::System::Threading::{
-    CreateProcessW, CREATE_NEW_CONSOLE, CREATE_UNICODE_ENVIRONMENT, PROCESS_INFORMATION,
-    STARTUPINFOW,
+    CreateProcessW, OpenProcess, CREATE_NEW_CONSOLE, CREATE_UNICODE_ENVIRONMENT,
+    PROCESS_INFORMATION, PROCESS_SET_QUOTA, PROCESS_TERMINATE, STARTUPINFOW,
 };
 
 use crate::profiles::Profile;
@@ -34,6 +34,7 @@ pub struct Session {
     pub ended_at: Option<String>,
     pub exit_code: Option<i64>,
     pub status: String, // "running" | "ended" | "crashed" | "killed"
+    pub origin: String, // "terminal" | "chat"
 }
 
 /// RAII wrapper around a Win32 Job Object handle.
@@ -71,6 +72,19 @@ impl OwnedJobObject {
         }
     }
 
+    /// Assign a child process by PID. Used for children spawned through
+    /// `tokio::process::Command`, which does not expose its Win32 handle.
+    pub fn assign_pid(&self, pid: u32) -> windows::core::Result<()> {
+        unsafe {
+            let handle = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, false, pid)?;
+            let result = AssignProcessToJobObject(self.0, handle);
+            let _ = CloseHandle(handle);
+            result?;
+            info!("Assigned child process {} to Win32 Job Object", pid);
+            Ok(())
+        }
+    }
+
     /// Terminate every process in the job. The job handle stays valid until dropped.
     pub fn terminate(&self) -> windows::core::Result<()> {
         unsafe { TerminateJobObject(self.0, 1) }
@@ -91,12 +105,14 @@ impl Drop for OwnedJobObject {
 #[derive(Default)]
 pub struct ProcessManager {
     jobs: Mutex<HashMap<String, Arc<OwnedJobObject>>>,
+    cancelled: Mutex<std::collections::HashSet<String>>,
 }
 
 impl ProcessManager {
     pub fn new() -> Self {
         Self {
             jobs: Mutex::new(HashMap::new()),
+            cancelled: Mutex::new(std::collections::HashSet::new()),
         }
     }
 
@@ -114,6 +130,27 @@ impl ProcessManager {
 
     pub fn job_for(&self, session_id: &str) -> Option<Arc<OwnedJobObject>> {
         self.jobs.lock().ok()?.get(session_id).cloned()
+    }
+
+    /// Kill every process in a session's job and remember that the termination
+    /// was requested by the user, so the caller can report "cancelled" instead
+    /// of an unexplained non-zero exit.
+    pub fn cancel(&self, session_id: &str) -> bool {
+        let Some(job) = self.job_for(session_id) else {
+            return false;
+        };
+        if let Ok(mut lock) = self.cancelled.lock() {
+            lock.insert(session_id.to_string());
+        }
+        let _ = job.terminate();
+        true
+    }
+
+    pub fn take_cancelled(&self, session_id: &str) -> bool {
+        self.cancelled
+            .lock()
+            .map(|mut lock| lock.remove(session_id))
+            .unwrap_or(false)
     }
 }
 
@@ -352,8 +389,8 @@ pub async fn spawn_session(
     // 5. Record session in SQLite database
     sqlx::query(
         r#"
-        INSERT INTO sessions (id, profile_id, project_id, pid, started_at, status)
-        VALUES (?1, ?2, ?3, ?4, ?5, 'running')
+        INSERT INTO sessions (id, profile_id, project_id, pid, started_at, status, origin)
+        VALUES (?1, ?2, ?3, ?4, ?5, 'running', 'terminal')
         "#,
     )
     .bind(&session_id)
@@ -373,6 +410,7 @@ pub async fn spawn_session(
         ended_at: None,
         exit_code: None,
         status: "running".to_string(),
+        origin: "terminal".to_string(),
     })
 }
 
@@ -380,7 +418,7 @@ pub async fn spawn_session(
 pub async fn list_sessions(pool: &SqlitePool) -> anyhow::Result<Vec<Session>> {
     let sessions = sqlx::query_as::<_, Session>(
         r#"
-        SELECT id, profile_id, project_id, pid, started_at, ended_at, exit_code, status
+        SELECT id, profile_id, project_id, pid, started_at, ended_at, exit_code, status, origin
         FROM sessions
         ORDER BY started_at DESC
         LIMIT 50
@@ -396,7 +434,7 @@ pub async fn list_sessions(pool: &SqlitePool) -> anyhow::Result<Vec<Session>> {
 pub async fn get_session(pool: &SqlitePool, id: &str) -> anyhow::Result<Option<Session>> {
     let session = sqlx::query_as::<_, Session>(
         r#"
-        SELECT id, profile_id, project_id, pid, started_at, ended_at, exit_code, status
+        SELECT id, profile_id, project_id, pid, started_at, ended_at, exit_code, status, origin
         FROM sessions
         WHERE id = ?1
         "#,

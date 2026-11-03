@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use crate::adapters::ProviderAdapter;
-use crate::chat::{LimitSignal, ParsedChunk, ToolRecord, TurnUsage};
+use crate::chat::{one_line, LimitSignal, ParsedChunk, ToolRecord, TurnUsage};
 
 fn as_i64(value: Option<&Value>) -> Option<i64> {
     value.and_then(Value::as_i64)
@@ -39,17 +39,6 @@ pub fn summarize_tool(name: &str, input: &Value) -> String {
     }
 }
 
-pub fn one_line(text: &str, max_chars: usize) -> String {
-    let flattened = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    if flattened.chars().count() <= max_chars {
-        flattened
-    } else {
-        let mut short: String = flattened.chars().take(max_chars.saturating_sub(3)).collect();
-        short.push_str("...");
-        short
-    }
-}
-
 fn usage_from(value: &Value) -> TurnUsage {
     TurnUsage {
         input_tokens: as_i64(value.get("input_tokens")),
@@ -61,7 +50,7 @@ fn usage_from(value: &Value) -> TurnUsage {
 }
 
 fn detect_limit(text: &str) -> Option<LimitSignal> {
-    ProviderAdapter::new()
+    crate::adapters::claude::ClaudeAdapter::new()
         .detect_limit(text, None)
         .map(|result| LimitSignal {
             raw_signal: result.raw_signal,
@@ -129,10 +118,7 @@ pub fn parse_line(line: &str) -> ParsedChunk {
                             }
                         }
                         Some("tool_use") => {
-                            let name = block
-                                .get("name")
-                                .and_then(Value::as_str)
-                                .unwrap_or("Tool");
+                            let name = block.get("name").and_then(Value::as_str).unwrap_or("Tool");
                             let input = block.get("input").unwrap_or(&Value::Null);
                             chunk.tools.push(ToolRecord {
                                 name: name.to_string(),
@@ -217,5 +203,36 @@ mod tests {
     fn ignores_limit_words_inside_assistant_text() {
         let line = r#"{"type":"assistant","message":{"content":[{"type":"text","text":"The docs describe rate limits."}]}}"#;
         assert!(parse_line(line).limit.is_none());
+    }
+
+    #[test]
+    fn parses_the_stream_fixture_end_to_end() {
+        let fixture = include_str!("../../fixtures/claude_stream.jsonl");
+        let mut session_id = None;
+        let mut text = String::new();
+        let mut tools = Vec::new();
+        let mut usage = None;
+
+        for line in fixture.lines() {
+            let chunk = parse_line(line);
+            if let Some(id) = chunk.session_id {
+                session_id = Some(id);
+            }
+            if let Some(delta) = chunk.text_delta {
+                text.push_str(&delta);
+            }
+            tools.extend(chunk.tools);
+            if chunk.usage.is_some() {
+                usage = chunk.usage;
+            }
+        }
+
+        assert_eq!(session_id.as_deref(), Some("claude-session-1"));
+        assert_eq!(text, "I'll read the file.");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].summary, "Read: src/main.rs");
+        let usage = usage.expect("usage");
+        assert_eq!(usage.input_tokens, Some(120));
+        assert_eq!(usage.output_tokens, Some(45));
     }
 }

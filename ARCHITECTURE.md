@@ -11,7 +11,7 @@
 ```mermaid
 flowchart TD
     subgraph Frontend["React 18 Frontend (WebView2)"]
-        UI["Launch, Profiles, Projects,\nActivity, Settings"]
+        UI["Chat, Profiles, Projects,\nActivity, Settings"]
         Toast["LimitToast\n(Non-blocking notification)"]
         Modal["ClientBoundaryModal\n(Consent barrier)"]
     end
@@ -60,13 +60,20 @@ The UI has five destinations and no nested sidebars:
 
 | Destination | Purpose |
 | --- | --- |
-| Launch | Pick a project and profile, start a Job Object session, and act on running sessions (report rate limit, switch, stop). |
+| Chat | Talk to Claude Code or Codex inside Gravity. Each chat owns its transcript, permission mode, and account; accounts can be switched mid-conversation. |
 | Profiles | Create and edit isolated Claude/Codex profiles, boundary tags, and credentials. |
-| Projects | Register folders, default profiles, terminal preference, and the flag-gated auto-switch policy. |
-| Activity | Read-only, append-only timeline of sessions, switches, and reported rate limits. |
+| Projects | Register folders, default profiles, terminal preference, and the flag-gated auto-switch policy. Opening a terminal session is a row action. |
+| Activity | Append-only timeline of sessions, switches, and reported rate limits. Running terminal sessions can be switched from here. |
 | Settings | Local paths, feature flags, real CLI probes, and safety notes. |
 
-Rate limits are user-reported from a running session. Gravity does not read
+Chat turns run the vendor CLI headlessly (`claude -p --output-format stream-json`,
+`codex exec --json`) with piped stdio and one Job Object per turn, so Gravity
+streams the answer and can kill the whole process tree on Stop. A rate limit in
+that stream is recorded and, when `auto_switch = true`, retried on the next
+eligible same-vendor account. Client-tagged accounts are never switched
+automatically.
+
+Terminal sessions still report rate limits by hand. Gravity does not read
 another terminal's output, so usage stays `unknown` unless a provider exposes a
 verifiable number.
 
