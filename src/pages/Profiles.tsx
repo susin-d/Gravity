@@ -119,10 +119,13 @@ export function ProfilesPage() {
     setRefreshingId(profile.id);
     try {
       const reading = await refreshUsage(profile.id);
+      const available = reading.source !== "unknown";
       toast({
-        variant: "info",
-        title: "Usage check complete",
-        description: reading.detail ?? "No verified reading is available.",
+        variant: available ? "success" : "info",
+        title: available ? "Usage updated" : "Usage unavailable",
+        description:
+          reading.detail ??
+          (available ? "Reading verified." : "No verified reading is available."),
       });
     } catch (cause) {
       toast({
