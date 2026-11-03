@@ -92,14 +92,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback((input: ToastInput) => {
     nextId.current += 1;
-    setRecords((current) => [
-      ...current,
-      {
-        ...input,
-        id: nextId.current,
-        variant: input.variant ?? "info",
-      },
-    ]);
+    const id = nextId.current;
+    const variant = input.variant ?? "info";
+    const key = `${variant}::${input.title}::${input.description ?? ""}`;
+    setRecords((current) =>
+      [
+        // Identical toast already on screen: replace it instead of stacking a copy.
+        ...current.filter(
+          (record) => `${record.variant}::${record.title}::${record.description ?? ""}` !== key,
+        ),
+        { ...input, id, variant },
+      ].slice(-3),
+    );
   }, []);
 
   return (
