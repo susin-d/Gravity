@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import { api, errorMessage } from "../lib/api";
-import type { CredentialStatus, Profile } from "../lib/types";
+import type { CredentialStatus, Profile, ProviderAuthStatus } from "../lib/types";
 import { formatDate, tagLabel, vendorLabel } from "../lib/format";
 import { useAppData } from "../state/AppData";
 import { Badge, tagBadgeVariant, vendorBadgeVariant } from "../components/ui/badge";
@@ -22,20 +22,16 @@ import { UsageBadge } from "../components/ui/usage-badge";
 import { useToast } from "../components/ui/toast";
 import { ProfileDialog } from "../components/profile-dialog";
 
-const credentialLabels: Record<CredentialStatus, string> = {
-  stored: "Stored",
-  missing: "CLI sign-in",
-  unknown: "Unavailable",
-};
-
-const credentialVariants: Record<
-  CredentialStatus,
-  "success" | "neutral" | "warning"
-> = {
-  stored: "success",
-  missing: "neutral",
-  unknown: "warning",
-};
+function credentialView(
+  credential: CredentialStatus | undefined,
+  auth: ProviderAuthStatus | undefined,
+): { variant: "success" | "neutral" | "warning"; label: string } {
+  if (credential === "stored") return { variant: "success", label: "Stored" };
+  if (auth?.status === "signed_in") return { variant: "success", label: "CLI signed in" };
+  if (auth?.status === "signed_out") return { variant: "neutral", label: "Not signed in" };
+  if (credential === "missing") return { variant: "neutral", label: "CLI sign-in" };
+  return { variant: "warning", label: "Unavailable" };
+}
 
 export function ProfilesPage() {
   const { profiles, usages, loading, refresh, refreshUsage } = useAppData();
@@ -47,6 +43,9 @@ export function ProfilesPage() {
   const [deleting, setDeleting] = useState(false);
   const [credentials, setCredentials] = useState<
     Record<string, CredentialStatus>
+  >({});
+  const [authStatuses, setAuthStatuses] = useState<
+    Record<string, ProviderAuthStatus>
   >({});
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
 
@@ -70,6 +69,27 @@ export function ProfilesPage() {
     ).then((entries) => {
       if (active) setCredentials(Object.fromEntries(entries));
     });
+
+    const codexProfiles = profiles.filter((profile) => profile.vendor === "codex");
+    if (codexProfiles.length === 0) {
+      setAuthStatuses({});
+    } else {
+      void Promise.all(
+        codexProfiles.map(async (profile) => {
+          try {
+            const status = await api.providerAuthStatus(profile.id);
+            return [profile.id, status] as const;
+          } catch {
+            return [
+              profile.id,
+              { status: "unknown", detail: "Sign-in status unavailable." } satisfies ProviderAuthStatus,
+            ] as const;
+          }
+        }),
+      ).then((entries) => {
+        if (active) setAuthStatuses(Object.fromEntries(entries));
+      });
+    }
 
     return () => {
       active = false;
@@ -119,7 +139,7 @@ export function ProfilesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Profiles"
-        description="Each profile binds a vendor, a boundary tag, and an isolated config directory. Credentials live in Windows Credential Manager."
+        description="Each profile binds a vendor, a boundary tag, and an isolated config directory. Sign in through the CLI, or store a key in Windows Credential Manager."
         actions={
           <Button
             variant="primary"
@@ -171,6 +191,8 @@ export function ProfilesPage() {
             <tbody>
               {profiles.map((profile) => {
                 const credential = credentials[profile.id];
+                const view = credentialView(credential, authStatuses[profile.id]);
+                const showChecking = credential === undefined && !authStatuses[profile.id];
                 return (
                   <tr key={profile.id} className={tableRow}>
                     <td className={td}>
@@ -190,12 +212,10 @@ export function ProfilesPage() {
                       </Badge>
                     </td>
                     <td className={td}>
-                      {credential ? (
-                        <Badge variant={credentialVariants[credential]}>
-                          {credentialLabels[credential]}
-                        </Badge>
-                      ) : (
+                      {showChecking ? (
                         <span className="text-xs text-ink-dim">Checking…</span>
+                      ) : (
+                        <Badge variant={view.variant}>{view.label}</Badge>
                       )}
                     </td>
                     <td className={td}>

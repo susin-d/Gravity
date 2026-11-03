@@ -113,6 +113,17 @@ pub fn delete_secret(profile_id: &str) -> anyhow::Result<()> {
     }
 }
 
+/// Pin file-based Codex credentials so two profiles never share one login
+/// through the OS credential store. Existing `config.toml` is left untouched.
+fn pin_codex_credential_store(config_dir: &Path) -> std::io::Result<()> {
+    let config_path = config_dir.join("config.toml");
+    if config_path.exists() {
+        return Ok(());
+    }
+    // https://learn.chatgpt.com/docs/auth#credential-storage
+    std::fs::write(&config_path, "cli_auth_credentials_store = \"file\"\n")
+}
+
 /// Create a new profile with its isolated filesystem directory and optional credential.
 pub async fn create_profile(
     pool: &SqlitePool,
@@ -124,6 +135,12 @@ pub async fn create_profile(
 
     // Create the isolated configuration directory
     std::fs::create_dir_all(&config_dir)?;
+
+    // Codex defaults to the OS credential store, which is per-user rather than
+    // per CODEX_HOME; file storage keeps Gravity profiles isolated.
+    if input.vendor == "codex" {
+        pin_codex_credential_store(&config_dir)?;
+    }
 
     let config_dir_str = config_dir.to_string_lossy().to_string();
     let cred_ref = format!("{}{}", KEYRING_SERVICE_PREFIX, id);
@@ -289,15 +306,11 @@ pub async fn delete_profile(pool: &SqlitePool, id: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Build a fully sanitized environment block according to Prime Directive #1:
-/// - Strips ALL `ANTHROPIC_*`, `OPENAI_*`, `CLAUDE_*`, `CODEX_*` from parent env.
-/// - Injects vendor-isolated config directory (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`).
-/// - Adds API key if provided.
-/// - Preserves essential Windows runtime variables.
-pub fn build_env_block(profile: &Profile, secret: Option<&str>) -> HashMap<String, String> {
+/// Parent environment restricted to the safe baseline set. AI vendor variables
+/// are dropped so spawned CLIs only see configuration Gravity injects explicitly.
+pub(crate) fn sanitized_parent_env() -> HashMap<String, String> {
     let mut env: HashMap<String, String> = HashMap::new();
 
-    // 1. Inherit only safe system variables from the host
     let safe_prefixes = [
         "SYSTEM",
         "PATH",
@@ -341,7 +354,17 @@ pub fn build_env_block(profile: &Profile, secret: Option<&str>) -> HashMap<Strin
         }
     }
 
-    // 2. Set vendor-explicit isolated config directory
+    env
+}
+
+/// Build a fully sanitized environment block according to Prime Directive #1:
+/// - Strips ALL `ANTHROPIC_*`, `OPENAI_*`, `CLAUDE_*`, `CODEX_*` from parent env.
+/// - Injects vendor-isolated config directory (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`).
+/// - Adds API key if provided.
+/// - Preserves essential Windows runtime variables.
+pub fn build_env_block(profile: &Profile, secret: Option<&str>) -> HashMap<String, String> {
+    let mut env = sanitized_parent_env();
+
     match profile.vendor.as_str() {
         "claude" => {
             env.insert("CLAUDE_CONFIG_DIR".to_string(), profile.config_dir.clone());
@@ -414,6 +437,20 @@ mod tests {
         assert_eq!(env.get("ANTHROPIC_API_KEY").unwrap(), "legit-secret-key");
         // Must NOT contain codex variables
         assert!(!env.contains_key("CODEX_HOME"));
+    }
+
+    #[test]
+    fn pins_codex_credential_store_once() {
+        let dir = tempfile::tempdir().expect("temp dir");
+
+        pin_codex_credential_store(dir.path()).expect("write config");
+        let written = std::fs::read_to_string(dir.path().join("config.toml")).expect("read config");
+        assert_eq!(written, "cli_auth_credentials_store = \"file\"\n");
+
+        std::fs::write(dir.path().join("config.toml"), "model = \"gpt-5\"\n").expect("rewrite");
+        pin_codex_credential_store(dir.path()).expect("leave existing config alone");
+        let kept = std::fs::read_to_string(dir.path().join("config.toml")).expect("read kept");
+        assert_eq!(kept, "model = \"gpt-5\"\n");
     }
 
     #[test]

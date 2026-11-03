@@ -5,10 +5,12 @@ Update this file before starting any new task and after completing it.
 
 ## In Progress
 
+- [ ] Verify provider install and CLI sign-in flows end-to-end (neither `codex` nor `claude` is on this machine)
 - [ ] Verify chat against installed Claude Code and Codex CLIs (neither is on this machine)
 
 ## Completed
 
+- [x] Redesign New profile dialog: provider cards with CLI install + CLI sign-in (Codex, Claude Code)
 - [x] Pin Settings to the bottom of the sidebar, separate from the primary destinations
 
 - [x] Replace Launch.tsx with Chat.tsx, update PageId/sidebar, add chat components and streaming hook

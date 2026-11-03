@@ -80,6 +80,15 @@ pub fn find_cli(name: &str) -> Option<PathBuf> {
     None
 }
 
+/// Lowercase extension of a CLI entry point. npm installs on Windows produce
+/// `.cmd`/`.bat` shims that cannot be spawned directly.
+pub(crate) fn cli_extension(path: &Path) -> String {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+}
+
 /// Probe a provider CLI instead of assuming it is installed.
 pub fn probe_health(name: &str) -> AdapterHealth {
     match find_cli(name) {

@@ -8,6 +8,7 @@ pub mod process;
 pub mod profiles;
 pub mod projects;
 pub mod redact;
+pub mod setup;
 pub mod single_instance;
 pub mod switching;
 pub mod usage;
@@ -103,6 +104,13 @@ pub fn run() {
             commands::list_profiles,
             commands::update_profile,
             commands::profile_credential_status,
+            commands::probe_provider_cli,
+            commands::remove_profile_secret,
+            commands::spawn_provider_install,
+            commands::spawn_provider_login,
+            commands::sign_in_with_api_key,
+            commands::provider_auth_status,
+            commands::sign_out_provider,
             commands::delete_profile,
             commands::spawn_session,
             commands::list_sessions,

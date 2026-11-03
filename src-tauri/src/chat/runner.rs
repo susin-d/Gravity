@@ -68,13 +68,7 @@ fn cli_args(vendor: &str, permission_mode: &str, resume: Option<&str>) -> Vec<St
 }
 
 fn build_command(cli: &Path) -> Command {
-    let ext = cli
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-
-    match ext.as_str() {
+    match crate::adapters::cli_extension(cli).as_str() {
         "cmd" | "bat" => {
             let mut command = Command::new("cmd.exe");
             command.arg("/c").arg(cli);

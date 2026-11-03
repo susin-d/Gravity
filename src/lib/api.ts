@@ -8,9 +8,11 @@ import type {
   CreateProfileInput,
   CreateProjectInput,
   CredentialStatus,
+  CliToolingStatus,
   LimitEvent,
   Profile,
   Project,
+  ProviderAuthStatus,
   ReportRateLimitResult,
   Session,
   SpawnSessionInput,
@@ -19,6 +21,7 @@ import type {
   UpdateChatInput,
   UpdateProfileInput,
   UpdateProjectInput,
+  Vendor,
   UsageReading,
 } from "./types";
 
@@ -36,6 +39,20 @@ export const api = {
   deleteProfile: (id: string) => invoke<void>("delete_profile", { id }),
   profileCredentialStatus: (profileId: string) =>
     invoke<CredentialStatus>("profile_credential_status", { profileId }),
+  removeProfileSecret: (profileId: string) =>
+    invoke<void>("remove_profile_secret", { profileId }),
+  probeProviderCli: (vendor: Vendor) =>
+    invoke<CliToolingStatus>("probe_provider_cli", { vendor }),
+  spawnProviderInstall: (vendor: Vendor) =>
+    invoke<string>("spawn_provider_install", { vendor }),
+  spawnProviderLogin: (profileId: string, method: "sign_in" | "device_auth") =>
+    invoke<string>("spawn_provider_login", { profileId, method }),
+  signInWithApiKey: (profileId: string, apiKey: string) =>
+    invoke<ProviderAuthStatus>("sign_in_with_api_key", { profileId, apiKey }),
+  providerAuthStatus: (profileId: string) =>
+    invoke<ProviderAuthStatus>("provider_auth_status", { profileId }),
+  signOutProvider: (profileId: string) =>
+    invoke<ProviderAuthStatus>("sign_out_provider", { profileId }),
 
   listProjects: () => invoke<Project[]>("list_projects"),
   createProject: (input: CreateProjectInput) =>
