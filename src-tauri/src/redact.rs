@@ -67,7 +67,8 @@ mod tests {
 
     #[test]
     fn test_redacts_anthropic_key() {
-        let raw = "Configuring profile with key sk-ant-api03-abcdef1234567890abcdef1234567890 in env";
+        let raw =
+            "Configuring profile with key sk-ant-api03-abcdef1234567890abcdef1234567890 in env";
         let cleaned = redact_sensitive_str(raw);
         assert!(!cleaned.contains("abcdef1234567890"));
         assert!(cleaned.contains("sk-ant-***[REDACTED]***"));

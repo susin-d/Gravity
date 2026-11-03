@@ -70,6 +70,9 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 match Db::open(&app_data).await {
                     Ok(db) => {
+                        if let Err(e) = process::reconcile_stale_sessions(db.pool()).await {
+                            tracing::error!("Failed to reconcile stale sessions: {e}");
+                        }
                         let state = Arc::new(AppState {
                             db,
                             flags: FeatureFlags::load(&app_data),
@@ -98,26 +101,27 @@ pub fn run() {
             commands::get_settings,
             commands::create_profile,
             commands::list_profiles,
+            commands::update_profile,
+            commands::profile_credential_status,
             commands::delete_profile,
             commands::spawn_session,
             commands::list_sessions,
+            commands::stop_session,
             commands::check_terminal_available,
             commands::create_project,
             commands::list_projects,
             commands::update_project,
             commands::set_project_auto_switch,
             commands::delete_project,
-            commands::get_profile_usage,
             commands::list_latest_usages,
-            commands::record_usage,
+            commands::refresh_profile_usage,
             commands::check_adapters_health,
-            commands::detect_line_limit,
             commands::list_limit_events,
+            commands::report_rate_limit,
             commands::suggest_fallback_profile,
             commands::execute_profile_switch,
             commands::record_switch_cancellation,
             commands::list_switch_events,
-            commands::trigger_auto_switch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Gravity");

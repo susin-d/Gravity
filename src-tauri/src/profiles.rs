@@ -31,6 +31,26 @@ pub struct CreateProfileInput {
     pub secret: Option<String>,
 }
 
+/// Update profile request payload from frontend. Vendor is immutable.
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateProfileInput {
+    pub label: String,
+    pub tag: String,
+    #[serde(default)]
+    pub secret: Option<String>,
+    #[serde(default)]
+    pub clear_secret: bool,
+}
+
+/// Whether a profile has a credential in the Windows Credential Manager.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CredentialStatus {
+    Stored,
+    Missing,
+    Unknown,
+}
+
 /// Keyring service prefix for Gravity credentials.
 pub const KEYRING_SERVICE_PREFIX: &str = "gravity:";
 
@@ -39,7 +59,10 @@ pub fn store_secret(profile_id: &str, secret: &str) -> anyhow::Result<()> {
     let service = format!("{}{}", KEYRING_SERVICE_PREFIX, profile_id);
     let entry = Entry::new(&service, "api_key")?;
     entry.set_password(secret)?;
-    info!("Credential stored in Windows Credential Manager for profile {}", profile_id);
+    info!(
+        "Credential stored in Windows Credential Manager for profile {}",
+        profile_id
+    );
     Ok(())
 }
 
@@ -54,13 +77,32 @@ pub fn get_secret(profile_id: &str) -> anyhow::Result<Option<String>> {
     }
 }
 
+/// Report whether a credential exists without exposing its value.
+pub fn credential_status(profile_id: &str) -> CredentialStatus {
+    match get_secret(profile_id) {
+        Ok(Some(_)) => CredentialStatus::Stored,
+        Ok(None) => CredentialStatus::Missing,
+        Err(_) => CredentialStatus::Unknown,
+    }
+}
+
+fn validate_tag(tag: &str) -> anyhow::Result<()> {
+    if tag != "personal" && tag != "work" && tag != "client" {
+        return Err(anyhow::anyhow!("Invalid tag: {}", tag));
+    }
+    Ok(())
+}
+
 /// Remove an API secret from the Windows Credential Manager.
 pub fn delete_secret(profile_id: &str) -> anyhow::Result<()> {
     let service = format!("{}{}", KEYRING_SERVICE_PREFIX, profile_id);
     let entry = Entry::new(&service, "api_key")?;
     match entry.delete_credential() {
         Ok(()) => {
-            info!("Credential removed from Windows Credential Manager for profile {}", profile_id);
+            info!(
+                "Credential removed from Windows Credential Manager for profile {}",
+                profile_id
+            );
             Ok(())
         }
         Err(keyring::Error::NoEntry) => Ok(()),
@@ -93,9 +135,7 @@ pub async fn create_profile(
     }
 
     // Validate tag
-    if input.tag != "personal" && input.tag != "work" && input.tag != "client" {
-        return Err(anyhow::anyhow!("Invalid tag: {}", input.tag));
-    }
+    validate_tag(&input.tag)?;
 
     // Store credential in Windows Credential Manager if provided
     if let Some(ref sec) = input.secret {
@@ -122,7 +162,10 @@ pub async fn create_profile(
     .execute(pool)
     .await?;
 
-    info!("Profile created: {} ({}) with tag {}", input.label, id, input.tag);
+    info!(
+        "Profile created: {} ({}) with tag {}",
+        input.label, id, input.tag
+    );
 
     Ok(Profile {
         id,
@@ -135,6 +178,64 @@ pub async fn create_profile(
         updated_at: now,
         is_active: 1,
     })
+}
+
+/// Update a profile's label, tag, or credential. Vendor cannot change because the
+/// config directory and vendor-specific environment block are bound at creation.
+pub async fn update_profile(
+    pool: &SqlitePool,
+    id: &str,
+    input: UpdateProfileInput,
+) -> anyhow::Result<Profile> {
+    let label = input.label.trim();
+    if label.is_empty() {
+        return Err(anyhow::anyhow!("Profile label cannot be empty"));
+    }
+    validate_tag(&input.tag)?;
+
+    if get_profile(pool, id).await?.is_none() {
+        return Err(anyhow::anyhow!("Profile not found: {}", id));
+    }
+
+    if input.clear_secret
+        && input
+            .secret
+            .as_deref()
+            .is_some_and(|s| !s.trim().is_empty())
+    {
+        return Err(anyhow::anyhow!(
+            "Provide a replacement credential or clear the existing one, not both"
+        ));
+    }
+
+    if input.clear_secret {
+        delete_secret(id)?;
+    } else if let Some(secret) = input
+        .secret
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        store_secret(id, secret)?;
+    }
+
+    sqlx::query(
+        r#"
+        UPDATE profiles
+        SET label = ?2, tag = ?3, updated_at = ?4
+        WHERE id = ?1 AND is_active = 1
+        "#,
+    )
+    .bind(id)
+    .bind(label)
+    .bind(&input.tag)
+    .bind(Utc::now().to_rfc3339())
+    .execute(pool)
+    .await?;
+
+    get_profile(pool, id)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Profile not found: {}", id))
 }
 
 /// List all active profiles.
@@ -198,9 +299,24 @@ pub fn build_env_block(profile: &Profile, secret: Option<&str>) -> HashMap<Strin
 
     // 1. Inherit only safe system variables from the host
     let safe_prefixes = [
-        "SYSTEM", "PATH", "TEMP", "TMP", "USERPROFILE", "HOMEDRIVE", "HOMEPATH",
-        "APPDATA", "LOCALAPPDATA", "COMSPEC", "PATHEXT", "WINDIR", "OS", "NUMBER_OF_PROCESSORS",
-        "PROCESSOR_", "PROGRAMDATA", "PROGRAMFILES", "COMMONPROGRAMFILES",
+        "SYSTEM",
+        "PATH",
+        "TEMP",
+        "TMP",
+        "USERPROFILE",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "COMSPEC",
+        "PATHEXT",
+        "WINDIR",
+        "OS",
+        "NUMBER_OF_PROCESSORS",
+        "PROCESSOR_",
+        "PROGRAMDATA",
+        "PROGRAMFILES",
+        "COMMONPROGRAMFILES",
     ];
 
     for (k, v) in std::env::vars() {
@@ -282,7 +398,10 @@ mod tests {
         let env = build_env_block(&profile, Some("legit-secret-key"));
 
         // Must NOT leak parent process secrets
-        assert_ne!(env.get("ANTHROPIC_API_KEY").map(|s| s.as_str()), Some("leaked-anthropic-key"));
+        assert_ne!(
+            env.get("ANTHROPIC_API_KEY").map(|s| s.as_str()),
+            Some("leaked-anthropic-key")
+        );
         assert!(!env.contains_key("OPENAI_API_KEY"));
         assert!(!env.contains_key("CLAUDE_TEST_VAR"));
 

@@ -1,12 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
   }
 
@@ -22,212 +21,59 @@
   }
 
   body {
-    /* Near-black body with subtle radial bloom — lighter center gives depth to blur layers */
-    background-color: #0a0a0a;
-    background-image: radial-gradient(ellipse at 50% 38%, #131313 0%, #060606 68%);
-    color: #ffffff;
-    font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
-    font-size: 0.875rem;
-    line-height: 1.5;
     margin: 0;
     overflow: hidden;
+    background-color: #09090b;
+    color: #fafafa;
+    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.5;
   }
 
-  /* ── Scrollbar ─────────────────────────────────────────────────────────── */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 3px;
+  #root {
+    height: 100vh;
   }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
 
-  /* ── Focus ring ────────────────────────────────────────────────────────── */
+  ::selection {
+    background: rgba(250, 250, 250, 0.18);
+  }
+
   :focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.50);
+    outline: 2px solid rgba(250, 250, 250, 0.55);
     outline-offset: 2px;
   }
 
-  /* ── Text selection ────────────────────────────────────────────────────── */
-  ::selection {
-    background: rgba(255, 255, 255, 0.18);
-    color: #ffffff;
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
   }
 
-  /* ── Caret ─────────────────────────────────────────────────────────────── */
-  input, textarea {
-    caret-color: #ffffff;
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
 
-  /* ── Drag region ───────────────────────────────────────────────────────── */
-  [data-tauri-drag-region] {
-    -webkit-user-select: none;
-    user-select: none;
-    cursor: default;
+  ::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border: 2px solid #09090b;
+    border-radius: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
-@layer components {
-  /* ══════════════════════════════════════════════════════════════════════
-     BUTTONS
-     ══════════════════════════════════════════════════════════════════════ */
-  .btn {
-    @apply inline-flex items-center gap-1.5 rounded font-medium transition-all duration-150
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30
-           disabled:pointer-events-none disabled:opacity-35;
-    font-size: 0.8125rem;
-    line-height: 1;
-    padding: 0.45rem 0.875rem;
-    white-space: nowrap;
-  }
-
-  /* Primary — glass white button with glow on hover */
-  .btn-primary {
-    @apply btn bg-glass-2 text-white border border-edge-DEFAULT
-           hover:bg-glass-4 hover:border-edge-strong
-           active:bg-glass-3;
-    &:hover {
-      box-shadow: 0 0 16px rgba(255, 255, 255, 0.16);
-    }
-  }
-
-  /* Secondary — subtle glass */
-  .btn-secondary {
-    @apply btn bg-glass-2 text-ink-high border border-edge-subtle
-           hover:bg-glass-3 hover:border-edge-DEFAULT hover:text-white;
-  }
-
-  /* Ghost — transparent, minimal */
-  .btn-ghost {
-    @apply btn text-ink-mid hover:text-white hover:bg-glass-2;
-    padding: 0.35rem 0.625rem;
-  }
-
-  /* Danger */
-  .btn-danger {
-    @apply btn text-red-400 hover:text-red-300 hover:bg-red-950/20;
-    padding: 0.35rem 0.625rem;
-  }
-
-  .btn-sm {
-    padding: 0.3rem 0.65rem;
-    font-size: 0.75rem;
-  }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     INPUTS
-     ══════════════════════════════════════════════════════════════════════ */
-  .input {
-    @apply w-full rounded border border-edge-subtle bg-glass-1 px-3 py-2
-           text-sm text-white placeholder-ink-low
-           transition-all duration-150
-           focus:outline-none focus:border-edge focus:ring-1 focus:ring-white/15
-           focus:bg-glass-2;
-  }
-
-  .input-mono {
-    @apply input font-mono text-xs;
-  }
-
-  select.input {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(255,255,255,0.4)' viewBox='0 0 16 16'%3E%3Cpath d='M8 10.5 3.5 6h9L8 10.5z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    padding-right: 2rem;
-  }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     CARDS
-     ══════════════════════════════════════════════════════════════════════ */
-  .card {
-    @apply rounded-xl border border-edge-subtle bg-glass-2 backdrop-blur-2xl;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
-                0 4px 24px rgba(0, 0, 0, 0.50);
-  }
-
-  .card-hover {
-    @apply card transition-all duration-200
-           hover:border-edge-DEFAULT hover:bg-glass-3;
-    &:hover {
-      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
-                  0 8px 32px rgba(0, 0, 0, 0.60),
-                  0 0 20px rgba(255, 255, 255, 0.03);
-    }
-  }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     TAGS — keep all semantic hues
-     ══════════════════════════════════════════════════════════════════════ */
-  .tag {
-    @apply inline-flex items-center rounded px-1.5 py-0.5 font-mono font-medium;
-    font-size: 0.65rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .tag-personal { @apply tag bg-blue-950/60   text-blue-300   ring-1 ring-blue-800/50; }
-  .tag-work     { @apply tag bg-violet-950/60 text-violet-300 ring-1 ring-violet-800/50; }
-  .tag-client   { @apply tag bg-amber-950/60  text-amber-300  ring-1 ring-amber-800/50; }
-  .tag-claude   { @apply tag bg-orange-950/60 text-orange-300 ring-1 ring-orange-800/50; }
-  .tag-codex    { @apply tag bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-800/50; }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     STATUS BADGES — semantic colors preserved
-     ══════════════════════════════════════════════════════════════════════ */
-  .badge-success  { @apply tag bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-800/50; }
-  .badge-warning  { @apply tag bg-amber-950/60   text-amber-300   ring-1 ring-amber-800/50; }
-  .badge-danger   { @apply tag bg-red-950/60     text-red-300     ring-1 ring-red-800/50; }
-  .badge-neutral  { @apply tag bg-glass-3        text-ink-mid     ring-1 ring-edge-subtle; }
-  .badge-info     { @apply tag bg-blue-950/60    text-blue-300    ring-1 ring-blue-800/50; }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     SECTION HEADING
-     ══════════════════════════════════════════════════════════════════════ */
-  .section-heading {
-    @apply text-2xs font-semibold uppercase tracking-widest text-ink-low;
-    letter-spacing: 0.09em;
-  }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     SKELETON
-     ══════════════════════════════════════════════════════════════════════ */
-  .skeleton {
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.04) 25%,
-      rgba(255, 255, 255, 0.09) 50%,
-      rgba(255, 255, 255, 0.04) 75%
-    );
-    background-size: 200% 100%;
-    @apply rounded animate-shimmer;
-  }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     DIVIDER
-     ══════════════════════════════════════════════════════════════════════ */
-  .divider { @apply border-t border-edge-subtle; }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     FORM LABEL
-     ══════════════════════════════════════════════════════════════════════ */
-  .form-label {
-    @apply block text-xs font-medium text-ink-mid mb-1;
-  }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     EMPTY STATE
-     ══════════════════════════════════════════════════════════════════════ */
-  .empty-state {
-    @apply flex flex-col items-center justify-center rounded-xl border border-dashed
-           border-edge-subtle py-16 text-center;
-  }
-
-  /* ══════════════════════════════════════════════════════════════════════
-     GLASS PANEL UTILITY (for non-.card surfaces like sidebar sub-sections)
-     ══════════════════════════════════════════════════════════════════════ */
-  .glass-panel {
-    @apply bg-glass-2 backdrop-blur-2xl border border-edge-subtle rounded-xl;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

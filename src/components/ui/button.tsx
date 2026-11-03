@@ -1,57 +1,71 @@
-import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
+import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:pointer-events-none disabled:opacity-35 select-none",
-  {
-    variants: {
-      variant: {
-        default:
-          "bg-glass-2 text-white border border-edge-DEFAULT hover:bg-glass-4 hover:border-edge-strong active:bg-glass-3 hover:shadow-glow-sm",
-        destructive:
-          "bg-red-950/20 text-red-300 border border-red-800/50 hover:bg-red-950/40 active:bg-red-950/60",
-        outline:
-          "border border-edge-DEFAULT bg-transparent text-white hover:bg-glass-2",
-        secondary:
-          "bg-glass-2 text-ink-high border border-edge-subtle hover:bg-glass-3 hover:border-edge-DEFAULT hover:text-white",
-        ghost:
-          "text-ink-mid hover:bg-glass-2 hover:text-white",
-        link: "text-white underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-[11px]",
-        lg: "h-10 rounded-lg px-8 text-sm",
-        icon: "h-8 w-8",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-);
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "danger"
+  | "warning";
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
+export type ButtonSize = "sm" | "md" | "icon";
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  loading?: boolean;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-Button.displayName = "Button";
+const variants: Record<ButtonVariant, string> = {
+  primary: "bg-ink text-canvas hover:bg-ink/90",
+  secondary:
+    "border border-line bg-raised text-ink hover:border-line-strong hover:bg-hover",
+  ghost: "text-ink-muted hover:bg-raised hover:text-ink",
+  danger:
+    "border border-danger-border bg-danger-bg text-danger-text hover:bg-danger-bg/70",
+  warning:
+    "border border-warning-border bg-warning-bg text-warning-text hover:bg-warning-bg/70",
+};
 
-export { Button, buttonVariants };
+const sizes: Record<ButtonSize, string> = {
+  sm: "h-8 px-3 text-xs",
+  md: "h-9 px-4 text-sm",
+  icon: "h-8 w-8 p-0",
+};
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      className,
+      variant = "secondary",
+      size = "md",
+      loading = false,
+      disabled,
+      children,
+      ...props
+    },
+    ref,
+  ) => (
+    <button
+      ref={ref}
+      type="button"
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={cn(
+        "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas",
+        "disabled:pointer-events-none disabled:opacity-40",
+        variants[variant],
+        sizes[size],
+        className,
+      )}
+      {...props}
+    >
+      {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+      {children}
+    </button>
+  ),
+);
+
+Button.displayName = "Button";

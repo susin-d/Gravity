@@ -63,6 +63,23 @@ cargo test -- --nocapture
 
 ---
 
+## Interface
+
+Gravity has five destinations:
+
+- **Launch** — start a session in a project folder and manage running sessions.
+- **Profiles** — isolated vendor configs, boundary tags, and credentials.
+- **Projects** — folders, default profiles, terminal preference, auto-switch policy.
+- **Activity** — append-only session, switch, and rate-limit history.
+- **Settings** — storage paths, feature flags, and CLI diagnostics.
+
+Rate limits are reported by you from a running session. Gravity never reads
+another terminal's output, so usage readings stay `Unknown` unless a provider
+exposes a verifiable number. Auto-switch is only reachable when `flags.toml`
+contains `auto_switch = true`; client projects and profiles are always excluded.
+
+---
+
 ## Milestone Roadmap
 
 - [x] **M0: Skeleton, Tray, Single Instance, SQLite, Settings Shell**

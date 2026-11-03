@@ -11,7 +11,7 @@
 ```mermaid
 flowchart TD
     subgraph Frontend["React 18 Frontend (WebView2)"]
-        UI["Navigation & Views\n(Settings, Projects, History)"]
+        UI["Launch, Profiles, Projects,\nActivity, Settings"]
         Toast["LimitToast\n(Non-blocking notification)"]
         Modal["ClientBoundaryModal\n(Consent barrier)"]
     end
@@ -53,6 +53,22 @@ flowchart TD
     ProcMgr -->|JobObject| CLI
     Adapters -.->|stdout / exit_code stream| ProcMgr
 ```
+
+### Frontend information architecture
+
+The UI has five destinations and no nested sidebars:
+
+| Destination | Purpose |
+| --- | --- |
+| Launch | Pick a project and profile, start a Job Object session, and act on running sessions (report rate limit, switch, stop). |
+| Profiles | Create and edit isolated Claude/Codex profiles, boundary tags, and credentials. |
+| Projects | Register folders, default profiles, terminal preference, and the flag-gated auto-switch policy. |
+| Activity | Read-only, append-only timeline of sessions, switches, and reported rate limits. |
+| Settings | Local paths, feature flags, real CLI probes, and safety notes. |
+
+Rate limits are user-reported from a running session. Gravity does not read
+another terminal's output, so usage stays `unknown` unless a provider exposes a
+verifiable number.
 
 ---
 

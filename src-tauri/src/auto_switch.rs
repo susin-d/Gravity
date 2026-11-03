@@ -15,6 +15,7 @@ use crate::switching::{self, SwitchEvent};
 /// 3. Client Project Lockout: Project `tag != 'client'`.
 /// 4. Client Source Profile Lockout: Source profile `tag != 'client'`.
 /// 5. Client Target Profile Lockout: Target profile `tag != 'client'`.
+///
 /// If ANY client boundary is encountered during auto-switch, it is strictly aborted and
 /// logged as `outcome = 'blocked_client_auto'`.
 pub async fn maybe_auto_switch(
@@ -46,7 +47,10 @@ pub async fn maybe_auto_switch(
     let project_id = match session.project_id {
         Some(ref pid) => pid.clone(),
         None => {
-            info!("Auto-switch ignored: session {} has no associated project", session_id);
+            info!(
+                "Auto-switch ignored: session {} has no associated project",
+                session_id
+            );
             return Ok(None);
         }
     };
@@ -57,13 +61,19 @@ pub async fn maybe_auto_switch(
 
     // Guard 3: Project must have auto-switch enabled
     if project.auto_switch_enabled == 0 {
-        info!("Auto-switch ignored: project {} has auto_switch_enabled = 0", project.name);
+        info!(
+            "Auto-switch ignored: project {} has auto_switch_enabled = 0",
+            project.name
+        );
         return Ok(None);
     }
 
     // Guard 4: Client Project Lockout
     if project.tag == "client" {
-        warn!("BLOCKED AUTO-SWITCH: Project {} is tagged 'client'", project.name);
+        warn!(
+            "BLOCKED AUTO-SWITCH: Project {} is tagged 'client'",
+            project.name
+        );
         let event = switching::record_switch_event(
             pool,
             Some(session_id),
@@ -85,7 +95,10 @@ pub async fn maybe_auto_switch(
         .ok_or_else(|| anyhow::anyhow!("Profile {} not found", session.profile_id))?;
 
     if from_profile.tag == "client" {
-        warn!("BLOCKED AUTO-SWITCH: Source profile {} is tagged 'client'", from_profile.label);
+        warn!(
+            "BLOCKED AUTO-SWITCH: Source profile {} is tagged 'client'",
+            from_profile.label
+        );
         let event = switching::record_switch_event(
             pool,
             Some(session_id),
@@ -105,7 +118,10 @@ pub async fn maybe_auto_switch(
     let target_profile = match switching::suggest_switch(pool, &session.profile_id).await? {
         Some(p) => p,
         None => {
-            info!("Auto-switch: no eligible fallback profile for {}", session.profile_id);
+            info!(
+                "Auto-switch: no eligible fallback profile for {}",
+                session.profile_id
+            );
             let event = switching::record_switch_event(
                 pool,
                 Some(session_id),
@@ -124,7 +140,10 @@ pub async fn maybe_auto_switch(
 
     // Guard 6: Target Profile Client Lockout
     if target_profile.tag == "client" {
-        warn!("BLOCKED AUTO-SWITCH: Target profile {} is tagged 'client'", target_profile.label);
+        warn!(
+            "BLOCKED AUTO-SWITCH: Target profile {} is tagged 'client'",
+            target_profile.label
+        );
         let event = switching::record_switch_event(
             pool,
             Some(session_id),
@@ -151,8 +170,8 @@ pub async fn maybe_auto_switch(
         profile: &target_profile,
         project_path: Some(std::path::Path::new(&project.path)),
         project_id: Some(project_id.clone()),
+        terminal: Some(project.terminal.as_str()),
         secret: secret.as_deref(),
-        custom_command: None,
     };
 
     let new_session = process::spawn_session(pool, process_mgr, opts).await?;
@@ -272,8 +291,13 @@ mod tests {
             .bind(&now).execute(&pool).await.unwrap();
 
         // Session
-        sqlx::query("INSERT INTO sessions VALUES ('s1', 'p1', 'proj1', 123, ?1, NULL, NULL, 'running')")
-            .bind(&now).execute(&pool).await.unwrap();
+        sqlx::query(
+            "INSERT INTO sessions VALUES ('s1', 'p1', 'proj1', 123, ?1, NULL, NULL, 'running')",
+        )
+        .bind(&now)
+        .execute(&pool)
+        .await
+        .unwrap();
 
         let res = maybe_auto_switch(&pool, &mgr, "s1", &flags).await.unwrap();
         assert!(res.is_some());
