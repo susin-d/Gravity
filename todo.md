@@ -9,6 +9,8 @@ Update this file before starting any new task and after completing it.
 
 ## Completed
 
+- [x] Pin Settings to the bottom of the sidebar, separate from the primary destinations
+
 - [x] Replace Launch.tsx with Chat.tsx, update PageId/sidebar, add chat components and streaming hook
 - [x] Move terminal launch to Projects and remove tauri-plugin-shell
 - [x] Add stream fixtures and parser/handoff/DB tests; run all checks; commit, push
