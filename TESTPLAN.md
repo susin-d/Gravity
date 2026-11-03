@@ -92,3 +92,14 @@ pnpm build
    SELECT outcome FROM switch_events ORDER BY switched_at DESC LIMIT 1;
    -- Must return 'confirmed_client_boundary'
    ```
+
+### Protocol D: Provider Provisioning (New Profile dialog)
+Requires a machine with npm and (for full coverage) the provider CLIs installed.
+1. Open **Profiles -> New profile**. Both provider cards resolve their state from the real CLI: `Installed · <version>` or `Not installed`. If npm is missing, the card shows the npm requirement notice and no Install button.
+2. With `codex`/`claude` absent, click **Install**: a console window opens and runs `npm install -g …`. When it exits, **Check again** flips the card to `Installed`.
+3. Create a Codex profile with no key: the dialog switches to **Finish sign-in** and shows **CLI signed in / Not signed in / Unavailable** from `codex login status` run with the profile's `CODEX_HOME`. Claude Code shows `Unavailable` (no verifiable check exists) and never a fabricated status.
+4. Click **Sign in in a window**: a console opens running `codex login`. Completing the browser flow, then **Edit profile** shows **CLI signed in**. **Sign out** runs `codex logout` and the badge flips back.
+5. **Device code** (Codex): the console prints the code and waits; completing it flips the badge.
+6. **API key**: for Codex the key is piped to `codex login --with-api-key`; for Claude Code the key is stored in Windows Credential Manager and `ANTHROPIC_API_KEY` is injected at spawn time.
+7. Inspect two Codex profiles' `config.toml`: each contains `cli_auth_credentials_store = "file"` and each profile's `auth.json` lives under its own directory. Signing in to one profile must not sign in to the other.
+8. No path can render a `signed_in` badge without the CLI confirming it; any spawn failure surfaces as `Unavailable` with the error text.

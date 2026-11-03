@@ -206,6 +206,67 @@ pub fn find_windows_terminal() -> Option<PathBuf> {
     None
 }
 
+/// Build a command line that opens a visible console running the given
+/// PowerShell fragment: Windows Terminal with PowerShell fallback.
+pub(crate) fn console_command(inner_ps: &str, work_dir: &str) -> Result<(String, String), String> {
+    match find_windows_terminal() {
+        Some(wt) => Ok((
+            wt.to_string_lossy().to_string(),
+            format!(
+                "\"{}\" -d \"{}\" -- powershell.exe -NoExit -Command \"{}\"",
+                wt.to_string_lossy(),
+                work_dir.replace('"', "\\\""),
+                inner_ps
+            ),
+        )),
+        None => {
+            warn!("Windows Terminal not found; falling back to powershell.exe");
+            Ok((
+                "powershell.exe".to_string(),
+                format!(
+                    "powershell.exe -NoExit -Command \"Set-Location -LiteralPath '{}'; {}\"",
+                    work_dir.replace('\'', "''"),
+                    inner_ps
+                ),
+            ))
+        }
+    }
+}
+
+/// Create a Job Object, launch the command line into it, and keep the job alive
+/// in the manager for the rest of the process.
+fn launch_in_new_job(
+    manager: &ProcessManager,
+    key: String,
+    cmd_line: &str,
+    work_dir: &str,
+    env_block: Vec<u16>,
+) -> anyhow::Result<u32> {
+    let job = Arc::new(
+        OwnedJobObject::new().map_err(|e| anyhow::anyhow!("Failed to create Job Object: {e}"))?,
+    );
+
+    let pid = launch_process_in_job(&job, cmd_line, work_dir, env_block)?;
+    manager.register_job(key, job);
+
+    Ok(pid)
+}
+
+/// Open a visible console running the given PowerShell fragment. Used for
+/// interactive vendor CLI flows (installs and logins) that must outlive the call.
+pub(crate) fn spawn_visible_console(
+    manager: &ProcessManager,
+    key: String,
+    inner_ps: &str,
+    work_dir: &str,
+    env: &HashMap<String, String>,
+) -> anyhow::Result<u32> {
+    let env_block = create_unicode_env_block(env);
+    let (_exe, cmd_line) = console_command(inner_ps, work_dir).map_err(anyhow::Error::msg)?;
+
+    launch_in_new_job(manager, key, &cmd_line, work_dir, env_block)
+}
+
 /// Convert a key-value environment map into the Win32 UTF-16 environment block format.
 /// The format consists of null-terminated `VAR=VAL\0` strings sorted case-insensitively,
 /// terminated with an extra `\0`.
@@ -347,26 +408,7 @@ pub async fn spawn_session(
             );
             ("powershell.exe".to_string(), cmd)
         }
-        "auto" => match wt_path {
-            Some(wt) => {
-                let cmd = format!(
-                    "\"{}\" -d \"{}\" -- powershell.exe -NoExit -Command \"{}\"",
-                    wt.to_string_lossy(),
-                    target_dir.replace('"', "\\\""),
-                    cli_cmd
-                );
-                (wt.to_string_lossy().to_string(), cmd)
-            }
-            None => {
-                warn!("Windows Terminal not found; falling back to powershell.exe");
-                let cmd = format!(
-                    "powershell.exe -NoExit -Command \"Set-Location -LiteralPath '{}'; {}\"",
-                    target_dir.replace('\'', "''"),
-                    cli_cmd
-                );
-                ("powershell.exe".to_string(), cmd)
-            }
-        },
+        "auto" => console_command(cli_cmd, &target_dir).map_err(anyhow::Error::msg)?,
         other => return Err(anyhow::anyhow!("Unknown terminal setting: {}", other)),
     };
 
@@ -376,17 +418,15 @@ pub async fn spawn_session(
     );
 
     // 3. Create Win32 Job Object for process isolation
-    let job = Arc::new(
-        OwnedJobObject::new().map_err(|e| anyhow::anyhow!("Failed to create Job Object: {e}"))?,
-    );
+    let pid = launch_in_new_job(
+        manager,
+        session_id.clone(),
+        &cmd_line,
+        &target_dir,
+        env_block,
+    )? as i64;
 
-    // 4. Launch child process synchronously
-    let pid = launch_process_in_job(&job, &cmd_line, &target_dir, env_block)? as i64;
-
-    // Register job in memory to keep it alive
-    manager.register_job(session_id.clone(), job);
-
-    // 5. Record session in SQLite database
+    // 4. Record session in SQLite database
     sqlx::query(
         r#"
         INSERT INTO sessions (id, profile_id, project_id, pid, started_at, status, origin)

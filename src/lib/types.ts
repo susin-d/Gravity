@@ -4,6 +4,21 @@ export type TerminalKind = "auto" | "wt" | "powershell";
 export type SessionStatus = "running" | "ended" | "crashed" | "killed";
 export type UsageSource = "official" | "estimated" | "unknown";
 export type CredentialStatus = "stored" | "missing" | "unknown";
+export type SignInStatus = "signed_in" | "signed_out" | "unknown";
+
+export interface ProviderAuthStatus {
+  status: SignInStatus;
+  detail: string;
+}
+
+export interface CliToolingStatus {
+  cli: string;
+  installed: boolean;
+  version: string | null;
+  path: string | null;
+  npm_available: boolean;
+  detail: string;
+}
 export type SwitchReason = "manual" | "limit" | "auto";
 export type SwitchOutcome =
   | "completed"

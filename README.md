@@ -68,10 +68,19 @@ cargo test -- --nocapture
 Gravity has five destinations:
 
 - **Chat** — talk to Claude Code or Codex inside Gravity, with a per-chat transcript and mid-conversation account switching.
-- **Profiles** — isolated vendor configs, boundary tags, and credentials.
+- **Profiles** — pick Claude Code or Codex as provider cards, install their CLIs with npm, and sign in through the CLI (`codex login`, device code, or piped API key). Isolated vendor configs, boundary tags, and credentials.
 - **Projects** — folders, default profiles, terminal preference, auto-switch policy; each row can open a terminal session.
 - **Activity** — append-only session, switch, and rate-limit history.
 - **Settings** — storage paths, feature flags, and CLI diagnostics.
+
+New profiles are created in place: the dialog probes whether each CLI is
+installed (and installs it with npm on demand), then the profile signs in
+through the CLI itself — a console window for the browser/device-code flows, or
+an API key piped to `codex login --with-api-key`. Codex profiles are pinned to
+file-based credentials (`cli_auth_credentials_store = "file"` in their own
+`config.toml`), so two profiles never share one login. Gravity never renders a
+signed-in state it cannot verify: Claude Code reports `Unavailable` (it has no
+verifiable status check), Codex reports whatever `codex login status` returns.
 
 Chat turns run the vendor CLI headlessly with piped stdio and a Job Object per
 turn, so Stop kills the whole process tree. A rate limit in the stream is

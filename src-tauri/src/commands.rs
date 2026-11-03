@@ -14,6 +14,7 @@ use crate::flags::FeatureFlags;
 use crate::process::{self, Session, SpawnOptions};
 use crate::profiles::{self, CreateProfileInput, CredentialStatus, Profile, UpdateProfileInput};
 use crate::projects::{self, CreateProjectInput, Project, UpdateProjectInput};
+use crate::setup::{self, CliToolingStatus, LoginMethod, ProviderAuthStatus};
 use crate::switching::{self, SwitchEvent, SwitchExecutionResult};
 use crate::usage::{self, RecordUsageInput, UsageReading};
 use crate::AppState;
@@ -100,6 +101,65 @@ pub async fn update_profile(
 #[tauri::command]
 pub fn profile_credential_status(profile_id: String) -> CredentialStatus {
     profiles::credential_status(&profile_id)
+}
+
+/// Tauri command: probe whether a provider CLI is installed and usable.
+#[tauri::command]
+pub async fn probe_provider_cli(vendor: String) -> Result<CliToolingStatus, String> {
+    setup::probe_provider_cli(&vendor).await
+}
+
+/// Tauri command: remove the API key stored in Windows Credential Manager.
+#[tauri::command]
+pub fn remove_profile_secret(profile_id: String) -> Result<(), String> {
+    profiles::delete_secret(&profile_id).map_err(|error| error.to_string())
+}
+
+/// Tauri command: open a visible console installing the provider CLI with npm.
+#[tauri::command]
+pub async fn spawn_provider_install(
+    state: State<'_, Arc<AppState>>,
+    vendor: String,
+) -> Result<String, String> {
+    setup::spawn_provider_installation(&state.process_mgr, &vendor).await
+}
+
+/// Tauri command: open a visible console running the provider CLI's own sign-in flow.
+#[tauri::command]
+pub async fn spawn_provider_login(
+    state: State<'_, Arc<AppState>>,
+    profile_id: String,
+    method: LoginMethod,
+) -> Result<String, String> {
+    setup::spawn_provider_login(&state.process_mgr, state.db.pool(), &profile_id, method).await
+}
+
+/// Tauri command: sign the profile in with an API key, piped to the CLI's login.
+#[tauri::command]
+pub async fn sign_in_with_api_key(
+    state: State<'_, Arc<AppState>>,
+    profile_id: String,
+    api_key: String,
+) -> Result<ProviderAuthStatus, String> {
+    setup::sign_in_with_api_key(state.db.pool(), &profile_id, &api_key).await
+}
+
+/// Tauri command: report the profile's CLI sign-in state.
+#[tauri::command]
+pub async fn provider_auth_status(
+    state: State<'_, Arc<AppState>>,
+    profile_id: String,
+) -> Result<ProviderAuthStatus, String> {
+    setup::provider_auth_status(state.db.pool(), &profile_id).await
+}
+
+/// Tauri command: sign the profile out of the provider CLI.
+#[tauri::command]
+pub async fn sign_out_provider(
+    state: State<'_, Arc<AppState>>,
+    profile_id: String,
+) -> Result<ProviderAuthStatus, String> {
+    setup::sign_out_provider(state.db.pool(), &profile_id).await
 }
 
 // ==========================================
